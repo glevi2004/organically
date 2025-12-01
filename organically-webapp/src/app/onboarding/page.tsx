@@ -37,9 +37,17 @@ function OnboardingContent() {
     name: string;
     imageFile?: File | null;
     currentImageUrl?: string;
+    description?: string;
+    niche?: string[];
+    brandVoice?: string;
+    valuesMission?: string;
   }>({
     name: "",
     imageFile: null,
+    description: "",
+    niche: [],
+    brandVoice: "",
+    valuesMission: "",
   });
 
   // Step 2 data
@@ -101,6 +109,10 @@ function OnboardingContent() {
           name: profileData.name || "",
           imageFile: null,
           currentImageUrl: profileData.imageUrl,
+          description: profileData.description || "",
+          niche: profileData.niche || [],
+          brandVoice: profileData.brandVoice || "",
+          valuesMission: profileData.valuesMission || "",
         });
 
         // Pre-fill Step 2 data
@@ -199,6 +211,12 @@ function OnboardingContent() {
         const updateData: Partial<Profile> = {};
 
         switch (currentStep) {
+          case 1:
+            updateData.description = step1Data.description || undefined;
+            updateData.niche = step1Data.niche || undefined;
+            updateData.brandVoice = step1Data.brandVoice || undefined;
+            updateData.valuesMission = step1Data.valuesMission || undefined;
+            break;
           case 2:
             updateData.platforms = step2Data.platforms;
             break;

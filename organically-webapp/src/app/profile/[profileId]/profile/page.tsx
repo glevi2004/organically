@@ -78,6 +78,15 @@ const CONTENT_TYPES = [
   { id: "podcasts", label: "Podcasts", icon: "🎙️" },
 ];
 
+const NICHES = [
+  { id: "fitness", label: "Fitness" },
+  { id: "tech", label: "Tech" },
+  { id: "lifestyle", label: "Lifestyle" },
+  { id: "business", label: "Business" },
+  { id: "education", label: "Education" },
+  { id: "entertainment", label: "Entertainment" },
+];
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const { activeProfile, refreshProfiles } = useProfile();
@@ -98,6 +107,10 @@ export default function ProfilePage() {
   const [ageRanges, setAgeRanges] = useState<string[]>([]);
   const [genders, setGenders] = useState<string[]>([]);
   const [contentTypes, setContentTypes] = useState<string[]>([]);
+  const [description, setDescription] = useState("");
+  const [niche, setNiche] = useState<string[]>([]);
+  const [brandVoice, setBrandVoice] = useState("");
+  const [valuesMission, setValuesMission] = useState("");
 
   // Load profile data
   useEffect(() => {
@@ -109,6 +122,10 @@ export default function ProfilePage() {
       setAgeRanges(activeProfile.targetAudience?.ageRanges || []);
       setGenders(activeProfile.targetAudience?.genders || []);
       setContentTypes(activeProfile.contentTypes || []);
+      setDescription(activeProfile.description || "");
+      setNiche(activeProfile.niche || []);
+      setBrandVoice(activeProfile.brandVoice || "");
+      setValuesMission(activeProfile.valuesMission || "");
     }
   }, [activeProfile]);
 
@@ -127,7 +144,11 @@ export default function ProfilePage() {
       JSON.stringify(genders) !==
         JSON.stringify(activeProfile.targetAudience?.genders || []) ||
       JSON.stringify(contentTypes) !==
-        JSON.stringify(activeProfile.contentTypes || []);
+        JSON.stringify(activeProfile.contentTypes || []) ||
+      description !== (activeProfile.description || "") ||
+      JSON.stringify(niche) !== JSON.stringify(activeProfile.niche || []) ||
+      brandVoice !== (activeProfile.brandVoice || "") ||
+      valuesMission !== (activeProfile.valuesMission || "");
 
     setHasChanges(changed);
   }, [
@@ -138,6 +159,10 @@ export default function ProfilePage() {
     ageRanges,
     genders,
     contentTypes,
+    description,
+    niche,
+    brandVoice,
+    valuesMission,
     activeProfile,
   ]);
 
@@ -168,6 +193,10 @@ export default function ProfilePage() {
         consistencyLevel: consistencyLevel as any,
         targetAudience: { ageRanges, genders },
         contentTypes,
+        description: description.trim() || undefined,
+        niche: niche.length > 0 ? niche : undefined,
+        brandVoice: brandVoice.trim() || undefined,
+        valuesMission: valuesMission.trim() || undefined,
       });
 
       await refreshProfiles();
@@ -194,6 +223,10 @@ export default function ProfilePage() {
       setAgeRanges(activeProfile.targetAudience?.ageRanges || []);
       setGenders(activeProfile.targetAudience?.genders || []);
       setContentTypes(activeProfile.contentTypes || []);
+      setDescription(activeProfile.description || "");
+      setNiche(activeProfile.niche || []);
+      setBrandVoice(activeProfile.brandVoice || "");
+      setValuesMission(activeProfile.valuesMission || "");
     }
     setImageFile(null);
     setIsEditingImage(false);
@@ -293,6 +326,78 @@ export default function ProfilePage() {
               </p>
             </div>
           </div>
+
+          {/* Description */}
+          {description && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">Description</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your brand or personal description
+                </p>
+              </div>
+              <p className="text-sm text-foreground whitespace-pre-wrap">
+                {description}
+              </p>
+            </div>
+          )}
+
+          {/* Niche */}
+          {niche.length > 0 && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">Niche / Category</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your content categories
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {niche.map((nicheId) => {
+                  const nicheItem = NICHES.find((n) => n.id === nicheId);
+                  return (
+                    <div
+                      key={nicheId}
+                      className="p-3 rounded-lg border-2 border-border bg-muted/30 flex items-center gap-2"
+                    >
+                      <span className="text-sm font-medium">
+                        {nicheItem?.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Brand Voice */}
+          {brandVoice && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">Brand Voice / Tone</h3>
+                <p className="text-sm text-muted-foreground">
+                  How you communicate with your audience
+                </p>
+              </div>
+              <p className="text-sm text-foreground whitespace-pre-wrap">
+                {brandVoice}
+              </p>
+            </div>
+          )}
+
+          {/* Values / Mission */}
+          {valuesMission && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">Values / Mission</h3>
+                <p className="text-sm text-muted-foreground">
+                  What drives you and what you stand for
+                </p>
+              </div>
+              <p className="text-sm text-foreground whitespace-pre-wrap">
+                {valuesMission}
+              </p>
+            </div>
+          )}
 
           {/* Platforms */}
           {platforms.length > 0 && (
@@ -524,6 +629,122 @@ export default function ProfilePage() {
                   ).toLocaleDateString()}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="description">Description / Bio</Label>
+              <p className="text-sm text-muted-foreground">
+                Describe your brand or personal profile in 200-500 characters
+              </p>
+            </div>
+            <textarea
+              id="description"
+              rows={4}
+              placeholder="Describe your brand or personal profile..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={500}
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {description.length}/500 characters
+              </p>
+              {description.length > 0 && description.length < 200 && (
+                <p className="text-xs text-amber-600">
+                  Minimum 200 characters recommended
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Niche */}
+          <div className="space-y-4">
+            <div>
+              <Label>Niche / Category</Label>
+              <p className="text-sm text-muted-foreground">
+                Select one or more categories that best describe your content
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {NICHES.map((nicheItem) => (
+                <button
+                  key={nicheItem.id}
+                  type="button"
+                  onClick={() => toggleItem(niche, nicheItem.id, setNiche)}
+                  className={`p-3 rounded-lg border-2 transition-all flex items-center gap-2 ${
+                    niche.includes(nicheItem.id)
+                      ? "border-emerald-500 bg-emerald-500/10"
+                      : "border-border hover:border-emerald-300"
+                  }`}
+                >
+                  <span className="text-sm font-medium">{nicheItem.label}</span>
+                  {niche.includes(nicheItem.id) && (
+                    <Check className="w-4 h-4 text-emerald-500" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Brand Voice */}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="brandVoice">Brand Voice / Tone</Label>
+              <p className="text-sm text-muted-foreground">
+                Describe your brand's voice and tone in 200-500 characters
+              </p>
+            </div>
+            <textarea
+              id="brandVoice"
+              rows={4}
+              placeholder="How do you want to communicate with your audience?"
+              value={brandVoice}
+              onChange={(e) => setBrandVoice(e.target.value)}
+              maxLength={500}
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {brandVoice.length}/500 characters
+              </p>
+              {brandVoice.length > 0 && brandVoice.length < 200 && (
+                <p className="text-xs text-amber-600">
+                  Minimum 200 characters recommended
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Values / Mission */}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="valuesMission">Values / Mission</Label>
+              <p className="text-sm text-muted-foreground">
+                Describe your brand's values and mission in 200-500 characters
+              </p>
+            </div>
+            <textarea
+              id="valuesMission"
+              rows={4}
+              placeholder="What drives you and what do you stand for?"
+              value={valuesMission}
+              onChange={(e) => setValuesMission(e.target.value)}
+              maxLength={500}
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {valuesMission.length}/500 characters
+              </p>
+              {valuesMission.length > 0 && valuesMission.length < 200 && (
+                <p className="text-xs text-amber-600">
+                  Minimum 200 characters recommended
+                </p>
+              )}
             </div>
           </div>
 

@@ -26,4 +26,10 @@ export interface Profile {
 
   // Step 5: Content Types
   contentTypes?: string[]; // ['short_form_video', 'long_form_video', 'stories', 'carousels', 'text_posts', 'podcasts']
+
+  // Step 1: Content Generation Fields
+  description?: string; // Brand/personal description (200-500 chars)
+  niche?: string[]; // Multi-select categories ['fitness', 'tech', 'lifestyle', 'business', 'education', 'entertainment']
+  brandVoice?: string; // Voice/Tone description (200-500 chars)
+  valuesMission?: string; // Values/Mission description (200-500 chars)
 }
