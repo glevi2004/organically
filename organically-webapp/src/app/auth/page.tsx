@@ -53,9 +53,18 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       toast.success("Welcome back! Signed in successfully.");
-      router.push("/home");
+      
+      // Import services dynamically to avoid circular dependencies
+      const { getUserWorkspaces } = await import("@/services/workspaceService");
+      const workspaces = await getUserWorkspaces(userCredential.user.uid);
+      
+      if (workspaces.length === 0) {
+        router.push("/onboarding");
+      } else {
+        router.push(`/workspace/${workspaces[0].id}/dashboard`);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to sign in");
     } finally {
@@ -74,9 +83,18 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Create user profile in Firestore
+      const { createUserProfile } = await import("@/services/userService");
+      await createUserProfile(userCredential.user.uid, {
+        email: userCredential.user.email || email,
+        displayName: userCredential.user.displayName || undefined,
+        photoURL: userCredential.user.photoURL || undefined,
+      });
+      
       toast.success("Account created successfully! Welcome to Organically.");
-      router.push("/home");
+      router.push("/onboarding");
     } catch (error: any) {
       toast.error(error.message || "Failed to create account");
     } finally {
@@ -124,8 +142,30 @@ export default function AuthPage() {
       }
 
       // If no password account → normal Google login
+      // Check if this is a new user or existing user
+      const { checkUserExists, createUserProfile } = await import("@/services/userService");
+      const userExists = await checkUserExists(result.user.uid);
+      
+      if (!userExists) {
+        // New user - create profile
+        await createUserProfile(result.user.uid, {
+          email: result.user.email || email,
+          displayName: result.user.displayName || undefined,
+          photoURL: result.user.photoURL || undefined,
+        });
+      }
+      
+      // Check for workspaces
+      const { getUserWorkspaces } = await import("@/services/workspaceService");
+      const workspaces = await getUserWorkspaces(result.user.uid);
+      
       toast.success("Signed in with Google!");
-      router.push("/home");
+      
+      if (workspaces.length === 0) {
+        router.push("/onboarding");
+      } else {
+        router.push(`/workspace/${workspaces[0].id}/dashboard`);
+      }
     } catch (error: any) {
       // Handles the classic linking error case
       if (error.code === "auth/account-exists-with-different-credential") {
@@ -181,7 +221,16 @@ export default function AuthPage() {
       setShowLinkDialog(false);
       setLinkPassword("");
       setPendingCredential(null);
-      router.push("/home");
+      
+      // Check for workspaces
+      const { getUserWorkspaces } = await import("@/services/workspaceService");
+      const workspaces = await getUserWorkspaces(auth.currentUser.uid);
+      
+      if (workspaces.length === 0) {
+        router.push("/onboarding");
+      } else {
+        router.push(`/workspace/${workspaces[0].id}/dashboard`);
+      }
     } catch (error: any) {
       if (error.code === "auth/wrong-password") {
         toast.error("Incorrect password. Please try again.");
