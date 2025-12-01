@@ -1,18 +1,18 @@
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
-import { Workspace } from "@/types/workspace";
+import { Profile } from "@/types/profile";
 
 /**
- * Save onboarding progress for a workspace
+ * Save onboarding progress for a profile
  */
 export async function saveOnboardingProgress(
-  workspaceId: string,
+  profileId: string,
   step: number,
-  data: Partial<Workspace>
+  data: Partial<Profile>
 ): Promise<void> {
-  const workspaceRef = doc(db, "workspaces", workspaceId);
+  const profileRef = doc(db, "profiles", profileId);
 
-  await updateDoc(workspaceRef, {
+  await updateDoc(profileRef, {
     ...data,
     onboardingStep: step,
     updatedAt: serverTimestamp(),
@@ -20,41 +20,41 @@ export async function saveOnboardingProgress(
 }
 
 /**
- * Get onboarding data for a workspace
+ * Get onboarding data for a profile
  */
 export async function getOnboardingData(
-  workspaceId: string
-): Promise<Workspace | null> {
-  const workspaceRef = doc(db, "workspaces", workspaceId);
-  const workspaceSnap = await getDoc(workspaceRef);
+  profileId: string
+): Promise<Profile | null> {
+  const profileRef = doc(db, "profiles", profileId);
+  const profileSnap = await getDoc(profileRef);
 
-  if (!workspaceSnap.exists()) {
+  if (!profileSnap.exists()) {
     return null;
   }
 
-  return workspaceSnap.data() as Workspace;
+  return profileSnap.data() as Profile;
 }
 
 /**
  * Mark onboarding as complete
  */
-export async function completeOnboarding(workspaceId: string): Promise<void> {
-  const workspaceRef = doc(db, "workspaces", workspaceId);
+export async function completeOnboarding(profileId: string): Promise<void> {
+  const profileRef = doc(db, "profiles", profileId);
 
-  await updateDoc(workspaceRef, {
+  await updateDoc(profileRef, {
     onboardingCompleted: true,
-    onboardingStep: 8,
+    onboardingStep: 5,
     updatedAt: serverTimestamp(),
   });
 }
 
 /**
- * Update workspace with onboarding-specific data
+ * Update profile with onboarding-specific data
  */
-export async function updateWorkspaceOnboarding(
-  workspaceId: string,
+export async function updateProfileOnboarding(
+  profileId: string,
   step: number,
-  data: Partial<Workspace>
+  data: Partial<Profile>
 ): Promise<void> {
-  await saveOnboardingProgress(workspaceId, step, data);
+  await saveOnboardingProgress(profileId, step, data);
 }
