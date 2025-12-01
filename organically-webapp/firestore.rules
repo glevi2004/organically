@@ -13,7 +13,7 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    // User profiles collection
+    // User profiles collection (user account data)
     match /users/{userId} {
       // Users can only read their own profile
       allow read: if isOwner(userId);
@@ -30,25 +30,23 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
     
-    // Workspaces collection
-    match /workspaces/{workspaceId} {
-      // Users can only read workspaces they own
+    // Profiles collection (content profiles - formerly workspaces)
+    match /profiles/{profileId} {
+      // Users can only read profiles they own
       allow read: if isAuthenticated() 
                   && resource.data.userId == request.auth.uid;
       
-      // Users can only create workspaces for themselves
+      // Users can only create profiles for themselves
       allow create: if isAuthenticated()
                     && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.name is string
-                    && request.resource.data.icon is string;
+                    && request.resource.data.name is string;
       
-      // Users can only update their own workspaces
-      // Allow onboarding progress updates (onboardingStep can increase)
+      // Users can only update their own profiles
+      // Allow any field updates as long as they own the profile
       allow update: if isAuthenticated()
-                    && resource.data.userId == request.auth.uid
-                    && request.resource.data.userId == request.auth.uid;
+                    && resource.data.userId == request.auth.uid;
       
-      // Users can only delete their own workspaces
+      // Users can only delete their own profiles
       allow delete: if isAuthenticated()
                     && resource.data.userId == request.auth.uid;
     }
@@ -59,4 +57,3 @@ service cloud.firestore {
     }
   }
 }
-
