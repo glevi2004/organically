@@ -53,17 +53,21 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       toast.success("Welcome back! Signed in successfully.");
-      
+
       // Import services dynamically to avoid circular dependencies
-      const { getUserWorkspaces } = await import("@/services/workspaceService");
-      const workspaces = await getUserWorkspaces(userCredential.user.uid);
-      
-      if (workspaces.length === 0) {
+      const { getUserProfiles } = await import("@/services/profileService");
+      const profiles = await getUserProfiles(userCredential.user.uid);
+
+      if (profiles.length === 0) {
         router.push("/onboarding");
       } else {
-        router.push(`/workspace/${workspaces[0].id}/dashboard`);
+        router.push(`/profile/${profiles[0].id}/home`);
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to sign in");
@@ -83,8 +87,12 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
       // Create user profile in Firestore
       const { createUserProfile } = await import("@/services/userService");
       await createUserProfile(userCredential.user.uid, {
@@ -92,7 +100,7 @@ export default function AuthPage() {
         displayName: userCredential.user.displayName || undefined,
         photoURL: userCredential.user.photoURL || undefined,
       });
-      
+
       toast.success("Account created successfully! Welcome to Organically.");
       router.push("/onboarding");
     } catch (error: any) {
@@ -143,9 +151,11 @@ export default function AuthPage() {
 
       // If no password account → normal Google login
       // Check if this is a new user or existing user
-      const { checkUserExists, createUserProfile } = await import("@/services/userService");
+      const { checkUserExists, createUserProfile } = await import(
+        "@/services/userService"
+      );
       const userExists = await checkUserExists(result.user.uid);
-      
+
       if (!userExists) {
         // New user - create profile
         await createUserProfile(result.user.uid, {
@@ -154,17 +164,17 @@ export default function AuthPage() {
           photoURL: result.user.photoURL || undefined,
         });
       }
-      
-      // Check for workspaces
-      const { getUserWorkspaces } = await import("@/services/workspaceService");
-      const workspaces = await getUserWorkspaces(result.user.uid);
-      
+
+      // Check for profiles
+      const { getUserProfiles } = await import("@/services/profileService");
+      const profiles = await getUserProfiles(result.user.uid);
+
       toast.success("Signed in with Google!");
-      
-      if (workspaces.length === 0) {
+
+      if (profiles.length === 0) {
         router.push("/onboarding");
       } else {
-        router.push(`/workspace/${workspaces[0].id}/dashboard`);
+        router.push(`/profile/${profiles[0].id}/home`);
       }
     } catch (error: any) {
       // Handles the classic linking error case
@@ -221,15 +231,15 @@ export default function AuthPage() {
       setShowLinkDialog(false);
       setLinkPassword("");
       setPendingCredential(null);
-      
-      // Check for workspaces
-      const { getUserWorkspaces } = await import("@/services/workspaceService");
-      const workspaces = await getUserWorkspaces(auth.currentUser.uid);
-      
-      if (workspaces.length === 0) {
+
+      // Check for profiles
+      const { getUserProfiles } = await import("@/services/profileService");
+      const profiles = await getUserProfiles(auth.currentUser.uid);
+
+      if (profiles.length === 0) {
         router.push("/onboarding");
       } else {
-        router.push(`/workspace/${workspaces[0].id}/dashboard`);
+        router.push(`/profile/${profiles[0].id}/home`);
       }
     } catch (error: any) {
       if (error.code === "auth/wrong-password") {

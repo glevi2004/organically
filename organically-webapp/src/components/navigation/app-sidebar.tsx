@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { toast } from "sonner";
 import {
   Sidebar,
@@ -50,50 +51,56 @@ import {
   Lightbulb,
   Calendar,
   FileEdit,
+  Globe,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ModeToggle } from "@/components/theme/mode-toggle";
-import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
+import { ProfileSwitcher } from "@/components/profile/ProfileSwitcher";
 
-const getNavMain = (workspaceId: string) => [
+const getNavMain = (profileId: string) => [
   {
-    title: "Dashboard",
-    url: `/workspace/${workspaceId}/dashboard`,
+    title: "Home",
+    url: `/profile/${profileId}/home`,
     icon: Home,
   },
   {
     title: "Analytics",
-    url: `/workspace/${workspaceId}/analytics`,
+    url: `/profile/${profileId}/analytics`,
     icon: BarChart3,
   },
   {
     title: "Idea Dump",
-    url: `/workspace/${workspaceId}/idea-dump`,
+    url: `/profile/${profileId}/idea-dump`,
     icon: Lightbulb,
   },
   {
     title: "Calendar",
-    url: `/workspace/${workspaceId}/calendar`,
+    url: `/profile/${profileId}/calendar`,
     icon: Calendar,
   },
   {
     title: "Posts",
-    url: `/workspace/${workspaceId}/posts`,
+    url: `/profile/${profileId}/posts`,
     icon: FileEdit,
   },
   {
+    title: "Profile",
+    url: `/profile/${profileId}/profile`,
+    icon: Globe,
+  },
+  {
     title: "Settings",
-    url: `/workspace/${workspaceId}/settings`,
+    url: `/profile/${profileId}/settings`,
     icon: Settings,
     items: [
       {
         title: "General",
-        url: `/workspace/${workspaceId}/settings`,
+        url: `/profile/${profileId}/settings`,
       },
       {
         title: "Platforms",
-        url: `/workspace/${workspaceId}/settings`,
+        url: `/profile/${profileId}/settings`,
       },
     ],
   },
@@ -101,7 +108,7 @@ const getNavMain = (workspaceId: string) => [
 
 export function AppSidebar() {
   const { user } = useAuth();
-  const { activeWorkspace } = useWorkspace();
+  const { activeProfile } = useProfile();
   const router = useRouter();
   const isMobile = useIsMobile();
 
@@ -129,15 +136,15 @@ export function AppSidebar() {
     return "U";
   };
 
-  const navMain = activeWorkspace ? getNavMain(activeWorkspace.id) : [];
+  const navMain = activeProfile ? getNavMain(activeProfile.id) : [];
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        {/* Workspace Switcher */}
+        {/* Profile Switcher */}
         <SidebarMenu>
           <SidebarMenuItem>
-            <WorkspaceSwitcher />
+            <ProfileSwitcher />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -169,9 +176,9 @@ export function AppSidebar() {
                           {item.items.map((subItem) => (
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton asChild>
-                                <a href={subItem.url}>
+                                <Link href={subItem.url}>
                                   <span>{subItem.title}</span>
-                                </a>
+                                </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           ))}
@@ -181,14 +188,14 @@ export function AppSidebar() {
                   </Collapsible>
                 );
               }
-              // Otherwise, render as simple button (Dashboard, Analytics, etc.)
+              // Otherwise, render as simple button (Home, Analytics, etc.)
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <Link href={item.url}>
                       {item.icon && <item.icon />}
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );

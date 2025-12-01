@@ -2,13 +2,12 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const EMOJI_OPTIONS = ["🌱", "💼", "🚀", "🎨", "📱", "💡", "🎯", "⚡", "🔥", "✨"];
+import { ImageUpload } from "@/components/ui/image-upload";
 
 interface Step1Data {
   name: string;
-  icon: string;
-  description: string;
+  imageFile?: File | null;
+  currentImageUrl?: string;
 }
 
 interface Step1BasicsProps {
@@ -20,40 +19,30 @@ export function Step1Basics({ data, onDataChange }: Step1BasicsProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Create Your Workspace</h2>
+        <h2 className="text-2xl font-bold mb-2">Create Your Profile</h2>
         <p className="text-muted-foreground">
-          Let's start with the basics. A workspace is where you'll manage your content plans, ideas, and posts.
+          Let's start with the basics. Your profile is where you'll manage your
+          content plans, ideas, and posts.
         </p>
       </div>
 
-      {/* Icon Picker */}
+      {/* Profile Image */}
       <div className="space-y-2">
-        <Label>Workspace Icon</Label>
-        <div className="flex gap-2 flex-wrap">
-          {EMOJI_OPTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => onDataChange({ ...data, icon: emoji })}
-              className={`text-3xl p-3 rounded-lg border-2 transition-all hover:scale-110 ${
-                data.icon === emoji
-                  ? "border-emerald-500 bg-emerald-500/10"
-                  : "border-border hover:border-emerald-300"
-              }`}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
+        <Label>Profile Image (Optional)</Label>
+        <ImageUpload
+          value={data.imageFile || data.currentImageUrl}
+          onChange={(file) => onDataChange({ ...data, imageFile: file })}
+          placeholder="Upload a profile image"
+        />
       </div>
 
-      {/* Workspace Name */}
+      {/* Profile Name */}
       <div className="space-y-2">
-        <Label htmlFor="workspace-name">
-          Workspace Name <span className="text-destructive">*</span>
+        <Label htmlFor="profile-name">
+          Profile Name <span className="text-destructive">*</span>
         </Label>
         <Input
-          id="workspace-name"
+          id="profile-name"
           type="text"
           placeholder="e.g., Personal Brand, Startup, Agency"
           value={data.name}
@@ -65,23 +54,6 @@ export function Step1Basics({ data, onDataChange }: Step1BasicsProps) {
           {data.name.length}/50 characters
         </p>
       </div>
-
-      {/* Description */}
-      <div className="space-y-2">
-        <Label htmlFor="description">Description (Optional)</Label>
-        <Input
-          id="description"
-          type="text"
-          placeholder="What's this workspace for?"
-          value={data.description}
-          onChange={(e) => onDataChange({ ...data, description: e.target.value })}
-          maxLength={100}
-        />
-        <p className="text-xs text-muted-foreground">
-          {data.description.length}/100 characters
-        </p>
-      </div>
     </div>
   );
 }
-
