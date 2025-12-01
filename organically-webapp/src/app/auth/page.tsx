@@ -59,11 +59,11 @@ export default function AuthPage() {
         password
       );
       toast.success("Welcome back! Signed in successfully.");
-
+      
       // Import services dynamically to avoid circular dependencies
       const { getUserProfiles } = await import("@/services/profileService");
       const profiles = await getUserProfiles(userCredential.user.uid);
-
+      
       if (profiles.length === 0) {
         router.push("/onboarding");
       } else {
@@ -92,7 +92,7 @@ export default function AuthPage() {
         email,
         password
       );
-
+      
       // Create user profile in Firestore
       const { createUserProfile } = await import("@/services/userService");
       await createUserProfile(userCredential.user.uid, {
@@ -100,7 +100,7 @@ export default function AuthPage() {
         displayName: userCredential.user.displayName || undefined,
         photoURL: userCredential.user.photoURL || undefined,
       });
-
+      
       toast.success("Account created successfully! Welcome to Organically.");
       router.push("/onboarding");
     } catch (error: any) {
@@ -155,7 +155,7 @@ export default function AuthPage() {
         "@/services/userService"
       );
       const userExists = await checkUserExists(result.user.uid);
-
+      
       if (!userExists) {
         // New user - create profile
         await createUserProfile(result.user.uid, {
@@ -164,13 +164,13 @@ export default function AuthPage() {
           photoURL: result.user.photoURL || undefined,
         });
       }
-
+      
       // Check for profiles
       const { getUserProfiles } = await import("@/services/profileService");
       const profiles = await getUserProfiles(result.user.uid);
-
+      
       toast.success("Signed in with Google!");
-
+      
       if (profiles.length === 0) {
         router.push("/onboarding");
       } else {
@@ -231,11 +231,11 @@ export default function AuthPage() {
       setShowLinkDialog(false);
       setLinkPassword("");
       setPendingCredential(null);
-
+      
       // Check for profiles
       const { getUserProfiles } = await import("@/services/profileService");
       const profiles = await getUserProfiles(auth.currentUser.uid);
-
+      
       if (profiles.length === 0) {
         router.push("/onboarding");
       } else {

@@ -68,7 +68,7 @@ export function Step5ContentTypes({ data, onDataChange }: Step5ContentTypesProps
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="flex flex-wrap gap-3">
         {CONTENT_TYPES.map((type) => {
           const isSelected = data.contentTypes.includes(type.id);
 
@@ -77,26 +77,17 @@ export function Step5ContentTypes({ data, onDataChange }: Step5ContentTypesProps
               key={type.id}
               type="button"
               onClick={() => toggleContentType(type.id)}
-              className={`p-4 rounded-lg border-2 transition-all hover:scale-[1.02] ${
+              className={`p-4 rounded-lg border-2 transition-all hover:scale-[1.02] flex items-center gap-3 ${
                 isSelected
                   ? "border-emerald-500 bg-emerald-500/10"
                   : "border-border hover:border-emerald-300"
               }`}
             >
-              <div className="flex items-start gap-3">
-                <span className="text-2xl flex-shrink-0">{type.icon}</span>
-                <div className="flex-1 text-left min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+              <span className="text-2xl">{type.icon}</span>
                     <span className="font-medium">{type.label}</span>
                     {isSelected && (
-                      <Check className="ml-auto w-5 h-5 text-emerald-500 flex-shrink-0" />
+                <Check className="w-5 h-5 text-emerald-500" />
                     )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {type.description}
-                  </p>
-                </div>
-              </div>
             </button>
           );
         })}

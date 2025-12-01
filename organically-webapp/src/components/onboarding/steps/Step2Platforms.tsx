@@ -2,43 +2,33 @@
 
 import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
+import Image from "next/image";
 
 const PLATFORMS = [
   {
     id: "instagram",
     name: "Instagram",
-    icon: "📸",
-    color: "from-purple-500 to-pink-500",
+    logo: "/logos/instagram.svg",
   },
   {
     id: "tiktok",
     name: "TikTok",
-    icon: "🎵",
-    color: "from-black to-cyan-500",
+    logo: "/logos/tiktok.svg",
   },
   {
     id: "youtube",
     name: "YouTube",
-    icon: "▶️",
-    color: "from-red-500 to-red-600",
+    logo: "/logos/youtube.svg",
   },
   {
     id: "x",
     name: "X (Twitter)",
-    icon: "✖️",
-    color: "from-gray-800 to-gray-900",
+    logo: "/logos/x.svg",
   },
   {
     id: "linkedin",
     name: "LinkedIn",
-    icon: "💼",
-    color: "from-blue-600 to-blue-700",
-  },
-  {
-    id: "threads",
-    name: "Threads",
-    icon: "🧵",
-    color: "from-gray-900 to-black",
+    logo: "/logos/linkedin.svg",
   },
 ];
 
@@ -69,7 +59,7 @@ export function Step2Platforms({ data, onDataChange }: Step2PlatformsProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="flex flex-wrap gap-3">
         {PLATFORMS.map((platform) => {
           const isSelected = data.platforms.includes(platform.id);
 
@@ -78,21 +68,23 @@ export function Step2Platforms({ data, onDataChange }: Step2PlatformsProps) {
               key={platform.id}
               type="button"
               onClick={() => togglePlatform(platform.id)}
-              className={`relative p-4 rounded-lg border-2 transition-all hover:scale-[1.02] ${
+              className={`p-4 rounded-lg border-2 transition-all hover:scale-[1.02] flex items-center gap-3 ${
                 isSelected
                   ? "border-emerald-500 bg-emerald-500/10"
                   : "border-border hover:border-emerald-300"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className={`text-2xl w-10 h-10 rounded-lg bg-gradient-to-br ${platform.color} flex items-center justify-center`}>
-                  {platform.icon}
-                </div>
-                <span className="font-medium text-left">{platform.name}</span>
+              <Image
+                src={platform.logo}
+                alt={platform.name}
+                width={24}
+                height={24}
+                className="shrink-0"
+              />
+              <span className="font-medium">{platform.name}</span>
                 {isSelected && (
-                  <Check className="ml-auto w-5 h-5 text-emerald-500" />
+                <Check className="w-5 h-5 text-emerald-500" />
                 )}
-              </div>
             </button>
           );
         })}

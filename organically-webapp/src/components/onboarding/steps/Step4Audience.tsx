@@ -11,10 +11,10 @@ const AGE_RANGES = [
 ];
 
 const GENDERS = [
-  { id: "all", label: "All genders" },
-  { id: "male", label: "Male" },
-  { id: "female", label: "Female" },
-  { id: "other", label: "Other" },
+  { id: "all", label: "All genders", icon: "🌍" },
+  { id: "male", label: "Male", icon: "👨" },
+  { id: "female", label: "Female", icon: "👩" },
+  { id: "other", label: "Other", icon: "🌈" },
 ];
 
 interface Step4Data {
@@ -81,10 +81,7 @@ export function Step4Audience({ data, onDataChange }: Step4AudienceProps) {
         </p>
       </div>
 
-      {/* Age Range Selection */}
-      <div className="space-y-3">
-        <Label className="text-base font-semibold">Age Range</Label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="flex flex-wrap gap-3">
           {AGE_RANGES.map((age) => {
             const isSelected = data.targetAudience.ageRanges.includes(age.id);
 
@@ -93,29 +90,20 @@ export function Step4Audience({ data, onDataChange }: Step4AudienceProps) {
                 key={age.id}
                 type="button"
                 onClick={() => toggleAgeRange(age.id)}
-                className={`p-4 rounded-lg border-2 transition-all hover:scale-[1.02] ${
+              className={`p-4 rounded-lg border-2 transition-all hover:scale-[1.02] flex items-center gap-3 ${
                   isSelected
                     ? "border-emerald-500 bg-emerald-500/10"
                     : "border-border hover:border-emerald-300"
                 }`}
               >
-                <div className="flex items-center gap-3">
                   <span className="text-2xl">{age.icon}</span>
-                  <span className="font-medium text-left flex-1">{age.label}</span>
+              <span className="font-medium">{age.label}</span>
                   {isSelected && (
                     <Check className="w-5 h-5 text-emerald-500" />
                   )}
-                </div>
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* Gender Selection */}
-      <div className="space-y-3">
-        <Label className="text-base font-semibold">Gender</Label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {GENDERS.map((gender) => {
             const isSelected = data.targetAudience.genders.includes(gender.id);
 
@@ -124,22 +112,20 @@ export function Step4Audience({ data, onDataChange }: Step4AudienceProps) {
                 key={gender.id}
                 type="button"
                 onClick={() => toggleGender(gender.id)}
-                className={`p-4 rounded-lg border-2 transition-all hover:scale-[1.02] ${
+              className={`p-4 rounded-lg border-2 transition-all hover:scale-[1.02] flex items-center gap-3 ${
                   isSelected
                     ? "border-emerald-500 bg-emerald-500/10"
                     : "border-border hover:border-emerald-300"
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <span className="font-medium text-left flex-1">{gender.label}</span>
+                  <span className="text-2xl">{gender.icon}</span>
+              <span className="font-medium">{gender.label}</span>
                   {isSelected && (
                     <Check className="w-5 h-5 text-emerald-500" />
                   )}
-                </div>
               </button>
             );
           })}
-        </div>
       </div>
 
       {(data.targetAudience.ageRanges.length > 0 || data.targetAudience.genders.length > 0) && (
