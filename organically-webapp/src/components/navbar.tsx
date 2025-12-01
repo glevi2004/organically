@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/theme/mode-toggle";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 export function Navbar() {
   const router = useRouter();
   const { user } = useAuth();
+  const { workspaces } = useWorkspace();
 
   const handleSignOut = async () => {
     try {
@@ -44,9 +46,15 @@ export function Navbar() {
                   variant="ghost"
                   size="sm"
                   className="bg-transparent hover:bg-primary/10"
-                  onClick={() => router.push("/home")}
+                  onClick={() => {
+                    if (workspaces.length > 0) {
+                      router.push(`/workspace/${workspaces[0].id}/dashboard`);
+                    } else {
+                      router.push("/onboarding");
+                    }
+                  }}
                 >
-                  Home
+                  Dashboard
                 </Button>
                 <Button
                   variant="ghost"

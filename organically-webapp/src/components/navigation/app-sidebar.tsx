@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
 import {
   Sidebar,
@@ -19,7 +20,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarMenuSubButton,
-  SidebarMenuAction,
   SidebarRail,
 } from "@/components/animate-ui/components/radix/sidebar";
 import {
@@ -34,15 +34,11 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Home,
-  LayoutDashboard,
   Settings,
-  FileText,
-  CalendarDays,
   ChevronRight,
   ChevronsUpDown,
   LogOut,
@@ -50,115 +46,62 @@ import {
   BadgeCheck,
   CreditCard,
   Bell,
-  MoreHorizontal,
-  Folder,
-  Forward,
-  Trash2,
-  Plus,
+  BarChart3,
+  Lightbulb,
+  Calendar,
+  FileEdit,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ModeToggle } from "@/components/theme/mode-toggle";
+import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 
-const navMain = [
+const getNavMain = (workspaceId: string) => [
   {
     title: "Dashboard",
-    url: "/home",
+    url: `/workspace/${workspaceId}/dashboard`,
     icon: Home,
-    isActive: true,
-    items: [
-      {
-        title: "Overview",
-        url: "/home",
-      },
-      {
-        title: "Analytics",
-        url: "/home",
-      },
-      {
-        title: "Reports",
-        url: "/home",
-      },
-    ],
   },
   {
-    title: "Content Plans",
-    url: "/home",
-    icon: LayoutDashboard,
-    items: [
-      {
-        title: "All Plans",
-        url: "/home",
-      },
-      {
-        title: "Active",
-        url: "/home",
-      },
-      {
-        title: "Drafts",
-        url: "/home",
-      },
-    ],
+    title: "Analytics",
+    url: `/workspace/${workspaceId}/analytics`,
+    icon: BarChart3,
   },
   {
-    title: "Content",
-    url: "/home",
-    icon: FileText,
-    items: [
-      {
-        title: "Outlines",
-        url: "/home",
-      },
-      {
-        title: "Templates",
-        url: "/home",
-      },
-      {
-        title: "Ideas",
-        url: "/home",
-      },
-    ],
+    title: "Idea Dump",
+    url: `/workspace/${workspaceId}/idea-dump`,
+    icon: Lightbulb,
+  },
+  {
+    title: "Calendar",
+    url: `/workspace/${workspaceId}/calendar`,
+    icon: Calendar,
+  },
+  {
+    title: "Posts",
+    url: `/workspace/${workspaceId}/posts`,
+    icon: FileEdit,
   },
   {
     title: "Settings",
-    url: "/home",
+    url: `/workspace/${workspaceId}/settings`,
     icon: Settings,
     items: [
       {
         title: "General",
-        url: "/home",
+        url: `/workspace/${workspaceId}/settings`,
       },
       {
         title: "Platforms",
-        url: "/home",
-      },
-      {
-        title: "Preferences",
-        url: "/home",
+        url: `/workspace/${workspaceId}/settings`,
       },
     ],
-  },
-];
-
-const projects = [
-  {
-    name: "Instagram Growth",
-    url: "/home",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "TikTok Strategy",
-    url: "/home",
-    icon: CalendarDays,
-  },
-  {
-    name: "YouTube Content",
-    url: "/home",
-    icon: FileText,
   },
 ];
 
 export function AppSidebar() {
   const { user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const router = useRouter();
   const isMobile = useIsMobile();
 
@@ -186,55 +129,15 @@ export function AppSidebar() {
     return "U";
   };
 
+  const navMain = activeWorkspace ? getNavMain(activeWorkspace.id) : [];
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        {/* Team Switcher with Organically Logo */}
+        {/* Workspace Switcher */}
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                >
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                    <span className="text-xl">🌱</span>
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">Organically</span>
-                    <span className="truncate text-xs">Content Growth</span>
-                  </div>
-                  <ChevronsUpDown className="ml-auto" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                align="start"
-                side={isMobile ? "bottom" : "right"}
-                sideOffset={4}
-              >
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Workspace
-                </DropdownMenuLabel>
-                <DropdownMenuItem className="gap-2 p-2">
-                  <div className="flex size-6 items-center justify-center rounded-sm border">
-                    <span className="text-sm">🌱</span>
-                  </div>
-                  Organically
-                  <DropdownMenuShortcut>⌘1</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 p-2">
-                  <div className="flex size-6 items-center justify-center rounded-md border bg-background">
-                    <Plus className="size-4" />
-                  </div>
-                  <div className="font-medium text-muted-foreground">
-                    Create workspace
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <WorkspaceSwitcher />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -244,81 +147,52 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarMenu>
-            {navMain.map((item) => (
-              <Collapsible
-                key={item.title}
-                asChild
-                defaultOpen={item.isActive}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton>
+            {navMain.map((item) => {
+              // If item has sub-items, render as collapsible (Settings)
+              if (item.items && item.items.length > 0) {
+                return (
+                  <Collapsible
+                    key={item.title}
+                    asChild
+                    className="group/collapsible"
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton>
+                          {item.icon && <item.icon />}
+                          <span>{item.title}</span>
+                          <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.items.map((subItem) => (
+                            <SidebarMenuSubItem key={subItem.title}>
+                              <SidebarMenuSubButton asChild>
+                                <a href={subItem.url}>
+                                  <span>{subItem.title}</span>
+                                </a>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                );
+              }
+              // Otherwise, render as simple button (Dashboard, Analytics, etc.)
+              return (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <a href={item.url}>
                       {item.icon && <item.icon />}
                       <span>{item.title}</span>
-                      <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {item.items?.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild>
-                            <a href={subItem.url}>
-                              <span>{subItem.title}</span>
-                            </a>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
+                    </a>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
-              </Collapsible>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        {/* Nav Project */}
-        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-          <SidebarGroupLabel>Projects</SidebarGroupLabel>
-          <SidebarMenu>
-            {projects.map((item) => (
-              <SidebarMenuItem key={item.name}>
-                <SidebarMenuButton asChild>
-                  <a href={item.url}>
-                    <item.icon />
-                    <span>{item.name}</span>
-                  </a>
-                </SidebarMenuButton>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuAction showOnHover>
-                      <MoreHorizontal />
-                      <span className="sr-only">More</span>
-                    </SidebarMenuAction>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className="w-48 rounded-lg"
-                    side={isMobile ? "bottom" : "right"}
-                    align={isMobile ? "end" : "start"}
-                  >
-                    <DropdownMenuItem>
-                      <Folder className="text-muted-foreground" />
-                      <span>View Project</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Forward className="text-muted-foreground" />
-                      <span>Share Project</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Trash2 className="text-muted-foreground" />
-                      <span>Delete Project</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </SidebarMenuItem>
-            ))}
+              );
+            })}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
@@ -407,6 +281,13 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
+                <div className="flex items-center justify-between gap-4 px-2 py-1.5">
+                  <span className="text-sm font-medium text-foreground">
+                    Theme
+                  </span>
+                  <ModeToggle />
+                </div>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut />
                   Log out
@@ -421,4 +302,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
