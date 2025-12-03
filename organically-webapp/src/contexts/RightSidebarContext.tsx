@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 
@@ -20,6 +21,7 @@ interface RightSidebarContextType {
   setMode: (mode: RightSidebarMode) => void;
   setPostContent: (content: ReactNode | null) => void;
   openPost: (content: ReactNode) => void;
+  setOnOpen: (callback: (() => void) | null) => void;
 }
 
 const RightSidebarContext = createContext<RightSidebarContextType | null>(null);
@@ -38,11 +40,17 @@ export function RightSidebarProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<RightSidebarMode>("ai");
   const [postContent, setPostContent] = useState<ReactNode | null>(null);
+  const onOpenCallbackRef = useRef<(() => void) | null>(null);
+
+  const setOnOpen = useCallback((callback: (() => void) | null) => {
+    onOpenCallbackRef.current = callback;
+  }, []);
 
   const open = useCallback((newMode?: RightSidebarMode) => {
     if (newMode !== undefined) {
       setMode(newMode);
     }
+    onOpenCallbackRef.current?.();
     setIsOpen(true);
   }, []);
 
@@ -66,6 +74,7 @@ export function RightSidebarProvider({ children }: { children: ReactNode }) {
 
   // Convenience function to open sidebar with post content
   const openPost = useCallback((content: ReactNode) => {
+    onOpenCallbackRef.current?.();
     setMode("posts");
     setPostContent(content);
     setIsOpen(true);
@@ -83,6 +92,7 @@ export function RightSidebarProvider({ children }: { children: ReactNode }) {
         setMode,
         setPostContent,
         openPost,
+        setOnOpen,
       }}
     >
       {children}
