@@ -6,6 +6,11 @@ import { PanelRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import {
+  RightSidebarProvider,
+  useRightSidebar,
+} from "@/contexts/RightSidebarContext";
+import { Chatbot } from "@/components/navigation/right-sidebar";
+import {
   SidebarProvider,
   SidebarInset,
 } from "@/components/animate-ui/components/radix/sidebar";
@@ -28,41 +33,15 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
 
-const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320; // pixels
-const RIGHT_SIDEBAR_MIN_WIDTH = 280;
+const RIGHT_SIDEBAR_DEFAULT_WIDTH = 400; // pixels
+const RIGHT_SIDEBAR_MIN_WIDTH = 320;
 const RIGHT_SIDEBAR_MAX_WIDTH = 600;
 
-function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const params = useParams();
-  const pathname = usePathname();
-  const { user, loading: authLoading } = useAuth();
-  const {
-    activeProfile,
-    profiles,
-    loading: profileLoading,
-    setActiveProfile,
-  } = useProfile();
-  const profileId = params.profileId as string;
-
-  // Right sidebar state
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+function RightSidebar() {
+  const { isOpen, mode, postContent } = useRightSidebar();
   const [sidebarWidth, setSidebarWidth] = useState(RIGHT_SIDEBAR_DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-
-  // Get current page from URL for breadcrumb
-  const pathSegments = pathname.split("/").filter(Boolean);
-  const pageSegments = pathSegments.slice(2);
-
-  const formatTitle = (segment: string) =>
-    segment
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-
-  const pageTitle = formatTitle(pageSegments[0] || "home");
-  const nestedPageTitle = pageSegments[1] ? formatTitle(pageSegments[1]) : null;
 
   // Resize handlers
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -100,6 +79,83 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
       window.removeEventListener("mouseup", stopResizing);
     };
   }, [isResizing, resize, stopResizing]);
+
+  return (
+    <div
+      ref={sidebarRef}
+      data-state={isOpen ? "expanded" : "collapsed"}
+      data-side="right"
+      className="group peer text-sidebar-foreground block"
+      style={
+        {
+          "--right-sidebar-width": `${sidebarWidth}px`,
+        } as React.CSSProperties
+      }
+    >
+      {/* Gap element that transitions width */}
+      <div
+        className={cn(
+          "relative bg-transparent group-data-[state=collapsed]:w-0",
+          isResizing
+            ? "w-[var(--right-sidebar-width)]"
+            : "w-[var(--right-sidebar-width)] transition-[width] duration-400 ease-[cubic-bezier(0.7,-0.15,0.25,1.15)]"
+        )}
+      />
+      {/* Sidebar container - fixed positioned */}
+      <div
+        className={cn(
+          "fixed inset-y-0 right-0 z-10 flex h-svh border-l group-data-[state=collapsed]:right-[calc(var(--right-sidebar-width)*-1)]",
+          isResizing
+            ? "w-[var(--right-sidebar-width)]"
+            : "w-[var(--right-sidebar-width)] transition-[right,width] duration-400 ease-[cubic-bezier(0.75,0,0.25,1)]"
+        )}
+      >
+        {/* Resize handle - only interactive when sidebar is open */}
+        <div
+          onMouseDown={startResizing}
+          className={cn(
+            "absolute inset-y-0 left-0 w-1 cursor-ew-resize hover:bg-border z-20",
+            "after:absolute after:inset-y-0 after:left-1/2 after:w-4 after:-translate-x-1/2",
+            !isOpen && "pointer-events-none"
+          )}
+        />
+        <div className="bg-sidebar flex h-full w-full flex-col">
+          {/* Right sidebar content based on mode */}
+          <div className="flex-1 overflow-auto">
+            {mode === "ai" ? <Chatbot /> : postContent}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const params = useParams();
+  const pathname = usePathname();
+  const { user, loading: authLoading } = useAuth();
+  const {
+    activeProfile,
+    profiles,
+    loading: profileLoading,
+    setActiveProfile,
+  } = useProfile();
+  const { toggle, isOpen } = useRightSidebar();
+  const profileId = params.profileId as string;
+
+  // Get current page from URL for breadcrumb
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const pageSegments = pathSegments.slice(2);
+
+  const formatTitle = (segment: string) =>
+    segment
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+  const pageTitle = formatTitle(pageSegments[0] || "home");
+  const nestedPageTitle = pageSegments[1] ? formatTitle(pageSegments[1]) : null;
 
   useEffect(() => {
     async function validateProfile() {
@@ -179,12 +235,12 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                onClick={toggle}
                 className="size-7"
               >
                 <PanelRight className="h-4 w-4" />
                 <span className="sr-only">
-                  {isRightSidebarOpen ? "Close" : "Open"} Sidebar
+                  {isOpen ? "Close" : "Open"} Sidebar
                 </span>
               </Button>
             </div>
@@ -194,53 +250,7 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarInset>
 
-        {/* Right Sidebar */}
-        <div
-          ref={sidebarRef}
-          data-state={isRightSidebarOpen ? "expanded" : "collapsed"}
-          data-side="right"
-          className="group peer text-sidebar-foreground block"
-          style={
-            {
-              "--right-sidebar-width": `${sidebarWidth}px`,
-            } as React.CSSProperties
-          }
-        >
-          {/* Gap element that transitions width */}
-          <div
-            className={cn(
-              "relative bg-transparent group-data-[state=collapsed]:w-0",
-              isResizing
-                ? "w-[var(--right-sidebar-width)]"
-                : "w-[var(--right-sidebar-width)] transition-[width] duration-400 ease-[cubic-bezier(0.7,-0.15,0.25,1.15)]"
-            )}
-          />
-          {/* Sidebar container - fixed positioned */}
-          <div
-            className={cn(
-              "fixed inset-y-0 right-0 z-10 flex h-svh border-l group-data-[state=collapsed]:right-[calc(var(--right-sidebar-width)*-1)]",
-              isResizing
-                ? "w-[var(--right-sidebar-width)]"
-                : "w-[var(--right-sidebar-width)] transition-[right,width] duration-400 ease-[cubic-bezier(0.75,0,0.25,1)]"
-            )}
-          >
-            {/* Resize handle - only interactive when sidebar is open */}
-            <div
-              onMouseDown={startResizing}
-              className={cn(
-                "absolute inset-y-0 left-0 w-1 cursor-ew-resize hover:bg-border z-20",
-                "after:absolute after:inset-y-0 after:left-1/2 after:w-4 after:-translate-x-1/2",
-                !isRightSidebarOpen && "pointer-events-none"
-              )}
-            />
-            <div className="bg-sidebar flex h-full w-full flex-col">
-              {/* Right sidebar content */}
-              <div className="flex-1 overflow-auto p-4">
-                {/* Content goes here */}
-              </div>
-            </div>
-          </div>
-        </div>
+        <RightSidebar />
       </LeftSidebarProvider>
     </SidebarProvider>
   );
@@ -253,7 +263,9 @@ export default function ProfileLayout({
 }) {
   return (
     <ProtectedRoute>
-      <ProfileLayoutContent>{children}</ProfileLayoutContent>
+      <RightSidebarProvider>
+        <ProfileLayoutContent>{children}</ProfileLayoutContent>
+      </RightSidebarProvider>
     </ProtectedRoute>
   );
 }
