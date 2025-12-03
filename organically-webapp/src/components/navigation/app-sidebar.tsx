@@ -22,6 +22,7 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
   SidebarRail,
+  useSidebar,
 } from "@/components/animate-ui/components/radix/sidebar";
 import {
   Collapsible,
@@ -52,10 +53,55 @@ import {
   Calendar,
   FileEdit,
   Globe,
+  PanelLeftIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/theme/mode-toggle";
 import { ProfileSwitcher } from "@/components/profile/ProfileSwitcher";
+
+// Create a context to share the left sidebar's toggle function
+const LeftSidebarContext = React.createContext<{
+  toggleLeftSidebar: () => void;
+} | null>(null);
+
+export function useLeftSidebar() {
+  const context = React.useContext(LeftSidebarContext);
+  if (!context) {
+    throw new Error("useLeftSidebar must be used within LeftSidebarProvider");
+  }
+  return context;
+}
+
+export function LeftSidebarProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { toggleSidebar } = useSidebar();
+
+  return (
+    <LeftSidebarContext.Provider value={{ toggleLeftSidebar: toggleSidebar }}>
+      {children}
+    </LeftSidebarContext.Provider>
+  );
+}
+
+export function LeftSidebarTrigger({ className }: { className?: string }) {
+  const { toggleLeftSidebar } = useLeftSidebar();
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={className}
+      onClick={toggleLeftSidebar}
+    >
+      <PanelLeftIcon />
+      <span className="sr-only">Toggle Left Sidebar</span>
+    </Button>
+  );
+}
 
 const getNavMain = (profileId: string) => [
   {
@@ -100,7 +146,7 @@ const getNavMain = (profileId: string) => [
   },
 ];
 
-export function AppSidebar() {
+function AppSidebarContent() {
   const { user } = useAuth();
   const { activeProfile } = useProfile();
   const router = useRouter();
@@ -301,4 +347,8 @@ export function AppSidebar() {
       <SidebarRail />
     </Sidebar>
   );
+}
+
+export function AppSidebar() {
+  return <AppSidebarContent />;
 }
