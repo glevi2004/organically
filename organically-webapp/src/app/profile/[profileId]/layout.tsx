@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
+import { PanelRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
-import { getProfile } from "@/services/profileService";
 import {
   SidebarProvider,
   SidebarInset,
-  SidebarTrigger,
 } from "@/components/animate-ui/components/radix/sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -24,9 +23,14 @@ import {
   LeftSidebarTrigger,
   LeftSidebarProvider,
 } from "@/components/navigation/app-sidebar";
-import { RightSidebar } from "@/components/navigation/right-sidebar";
+import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { cn } from "@/lib/utils";
+
+const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320; // pixels
+const RIGHT_SIDEBAR_MIN_WIDTH = 280;
+const RIGHT_SIDEBAR_MAX_WIDTH = 600;
 
 function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -41,10 +45,15 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
   } = useProfile();
   const profileId = params.profileId as string;
 
+  // Right sidebar state
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(RIGHT_SIDEBAR_DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
   // Get current page from URL for breadcrumb
   const pathSegments = pathname.split("/").filter(Boolean);
-  // Remove 'profile' and profileId from segments to get actual page path
-  const pageSegments = pathSegments.slice(2); // Everything after /profile/[profileId]
+  const pageSegments = pathSegments.slice(2);
 
   const formatTitle = (segment: string) =>
     segment
@@ -55,6 +64,43 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
   const pageTitle = formatTitle(pageSegments[0] || "home");
   const nestedPageTitle = pageSegments[1] ? formatTitle(pageSegments[1]) : null;
 
+  // Resize handlers
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback(
+    (e: MouseEvent) => {
+      if (isResizing && sidebarRef.current) {
+        const newWidth = window.innerWidth - e.clientX;
+        if (
+          newWidth >= RIGHT_SIDEBAR_MIN_WIDTH &&
+          newWidth <= RIGHT_SIDEBAR_MAX_WIDTH
+        ) {
+          setSidebarWidth(newWidth);
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", resize);
+      window.addEventListener("mouseup", stopResizing);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [isResizing, resize, stopResizing]);
+
   useEffect(() => {
     async function validateProfile() {
       if (authLoading || profileLoading) return;
@@ -64,17 +110,14 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Check if profile exists in user's profiles
       const profile = profiles.find((p) => p.id === profileId);
 
       if (!profile) {
-        // Profile not found or user doesn't have access
         console.error("Profile not found or access denied");
         router.push("/onboarding");
         return;
       }
 
-      // Set as active profile if not already
       if (activeProfile?.id !== profileId) {
         await setActiveProfile(profileId);
       }
@@ -97,62 +140,109 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
-      <SidebarProvider>
-        <LeftSidebarProvider>
-          <AppSidebar />
-          <div className="flex-1 flex flex-col">
-            <SidebarProvider>
-              <div className="flex-1 flex">
-                <SidebarInset className="flex-1">
-                  <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-                    <div className="flex items-center gap-2 px-4">
-                      <LeftSidebarTrigger className="-ml-1" />
-                      <Separator orientation="vertical" className="mr-2 h-4" />
-                      <Breadcrumb>
-                        <BreadcrumbList>
-                          <BreadcrumbItem>
-                            {nestedPageTitle ? (
-                              <BreadcrumbLink
-                                href={`/profile/${profileId}/${pageSegments[0]}`}
-                                className="text-xl font-semibold"
-                              >
-                                {pageTitle}
-                              </BreadcrumbLink>
-                            ) : (
-                              <BreadcrumbPage className="text-xl font-semibold">
-                                {pageTitle}
-                              </BreadcrumbPage>
-                            )}
-                          </BreadcrumbItem>
-                          {nestedPageTitle && (
-                            <>
-                              <BreadcrumbSeparator />
-                              <BreadcrumbItem>
-                                <BreadcrumbPage>
-                                  {nestedPageTitle}
-                                </BreadcrumbPage>
-                              </BreadcrumbItem>
-                            </>
-                          )}
-                        </BreadcrumbList>
-                      </Breadcrumb>
-                    </div>
-                    <div className="flex items-center gap-2 px-4">
-                      <SidebarTrigger className="-mr-1" />
-                    </div>
-                  </header>
-                  <div className="flex flex-1 flex-col gap-4 p-16 pt-0">
-                    {children}
-                  </div>
-                </SidebarInset>
-                <RightSidebar />
-              </div>
-            </SidebarProvider>
+    <SidebarProvider>
+      <LeftSidebarProvider>
+        <AppSidebar />
+        <SidebarInset className="flex-1 flex flex-col">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+            <div className="flex items-center gap-2 px-4">
+              <LeftSidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 h-4" />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    {nestedPageTitle ? (
+                      <BreadcrumbLink
+                        href={`/profile/${profileId}/${pageSegments[0]}`}
+                        className="text-xl font-semibold"
+                      >
+                        {pageTitle}
+                      </BreadcrumbLink>
+                    ) : (
+                      <BreadcrumbPage className="text-xl font-semibold">
+                        {pageTitle}
+                      </BreadcrumbPage>
+                    )}
+                  </BreadcrumbItem>
+                  {nestedPageTitle && (
+                    <>
+                      <BreadcrumbSeparator />
+                      <BreadcrumbItem>
+                        <BreadcrumbPage>{nestedPageTitle}</BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </>
+                  )}
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+            <div className="flex items-center gap-2 px-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                className="size-7"
+              >
+                <PanelRight className="h-4 w-4" />
+                <span className="sr-only">
+                  {isRightSidebarOpen ? "Close" : "Open"} Sidebar
+                </span>
+              </Button>
+            </div>
+          </header>
+          <div className="flex flex-1 flex-col gap-4 p-16 pt-0 overflow-auto">
+            {children}
           </div>
-        </LeftSidebarProvider>
-      </SidebarProvider>
-    </>
+        </SidebarInset>
+
+        {/* Right Sidebar */}
+        <div
+          ref={sidebarRef}
+          data-state={isRightSidebarOpen ? "expanded" : "collapsed"}
+          data-side="right"
+          className="group peer text-sidebar-foreground block"
+          style={
+            {
+              "--right-sidebar-width": `${sidebarWidth}px`,
+            } as React.CSSProperties
+          }
+        >
+          {/* Gap element that transitions width */}
+          <div
+            className={cn(
+              "relative bg-transparent group-data-[state=collapsed]:w-0",
+              isResizing
+                ? "w-[var(--right-sidebar-width)]"
+                : "w-[var(--right-sidebar-width)] transition-[width] duration-400 ease-[cubic-bezier(0.7,-0.15,0.25,1.15)]"
+            )}
+          />
+          {/* Sidebar container - fixed positioned */}
+          <div
+            className={cn(
+              "fixed inset-y-0 right-0 z-10 flex h-svh border-l group-data-[state=collapsed]:right-[calc(var(--right-sidebar-width)*-1)]",
+              isResizing
+                ? "w-[var(--right-sidebar-width)]"
+                : "w-[var(--right-sidebar-width)] transition-[right,width] duration-400 ease-[cubic-bezier(0.75,0,0.25,1)]"
+            )}
+          >
+            {/* Resize handle - only interactive when sidebar is open */}
+            <div
+              onMouseDown={startResizing}
+              className={cn(
+                "absolute inset-y-0 left-0 w-1 cursor-ew-resize hover:bg-border z-20",
+                "after:absolute after:inset-y-0 after:left-1/2 after:w-4 after:-translate-x-1/2",
+                !isRightSidebarOpen && "pointer-events-none"
+              )}
+            />
+            <div className="bg-sidebar flex h-full w-full flex-col">
+              {/* Right sidebar content */}
+              <div className="flex-1 overflow-auto p-4">
+                {/* Content goes here */}
+              </div>
+            </div>
+          </div>
+        </div>
+      </LeftSidebarProvider>
+    </SidebarProvider>
   );
 }
 
