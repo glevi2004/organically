@@ -1,0 +1,22 @@
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o-mini"),
+    system: `You are a helpful AI assistant for Organically, a social media management platform. 
+You help users with:
+- Creating and scheduling social media posts
+- Content ideas and suggestions
+- Social media strategy
+- Analytics and insights
+Be concise, friendly, and helpful.`,
+    messages: convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
