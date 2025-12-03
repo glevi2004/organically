@@ -15,6 +15,7 @@ export interface Post {
   content: string;
   platform: PostPlatform;
   status: PostStatus;
+  order: number; // Position within the status column
   scheduledDate?: Date;
   postedDate?: Date;
   hooks?: string[];
