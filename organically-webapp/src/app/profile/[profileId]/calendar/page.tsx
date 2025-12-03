@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRightSidebar } from "@/contexts/RightSidebarContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,27 +16,277 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Plus,
+  GripVertical,
+} from "lucide-react";
 import { toast } from "sonner";
-import { createPost, getPostsByDateRange } from "@/services/postService";
-import { Post } from "@/types/post";
+import {
+  createPost,
+  getPostsByDateRange,
+  updatePost,
+  deletePost,
+  reorderPosts,
+} from "@/services/postService";
+import { Post, PostStatus } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/profile-constants";
+import { PostEditor } from "@/components/navigation/right-sidebar";
+
+// DnD Kit imports
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
+
+// Helper to get platform icon
+const getPlatformIcon = (platformId: string) => {
+  const platform = PLATFORMS.find((p) => p.id === platformId);
+  return platform?.logo;
+};
+
+// Helper to get status colors
+const getStatusColor = (status: string) => {
+  const colors = {
+    idea: "bg-blue-500/20 border-blue-500/50 text-blue-700 dark:text-blue-300",
+    draft:
+      "bg-yellow-500/20 border-yellow-500/50 text-yellow-700 dark:text-yellow-300",
+    ready:
+      "bg-green-500/20 border-green-500/50 text-green-700 dark:text-green-300",
+    posted:
+      "bg-purple-500/20 border-purple-500/50 text-purple-700 dark:text-purple-300",
+  };
+  return colors[status as keyof typeof colors] || colors.idea;
+};
+
+// Get date key for grouping posts (YYYY-MM-DD format)
+const getDateKey = (date: Date) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+// Sortable Calendar Post Card Component
+interface SortableCalendarPostCardProps {
+  post: Post;
+  onClick: () => void;
+  isDragOverlay?: boolean;
+}
+
+function SortableCalendarPostCard({
+  post,
+  onClick,
+  isDragOverlay = false,
+}: SortableCalendarPostCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: post.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const platformLogo = getPlatformIcon(post.platform);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "p-1.5 rounded border text-xs group cursor-pointer",
+        getStatusColor(post.status),
+        isDragging && !isDragOverlay && "opacity-50",
+        isDragOverlay && "shadow-lg ring-2 ring-primary"
+      )}
+    >
+      <div className="flex items-center gap-1">
+        {/* Card Content - Clickable */}
+        <div
+          className="flex-1 flex items-center gap-1 min-w-0"
+          onClick={onClick}
+        >
+          {platformLogo && (
+            <Image
+              src={platformLogo}
+              alt={post.platform}
+              width={12}
+              height={12}
+              className="shrink-0"
+            />
+          )}
+          <span className="truncate font-medium">{post.title}</span>
+        </div>
+
+        {/* Drag Handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="shrink-0 cursor-grab active:cursor-grabbing text-current opacity-0 group-hover:opacity-70 transition-opacity touch-none"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Post Card for Drag Overlay
+function CalendarPostCardOverlay({ post }: { post: Post }) {
+  const platformLogo = getPlatformIcon(post.platform);
+
+  return (
+    <div
+      className={cn(
+        "p-1.5 rounded border text-xs shadow-lg ring-2 ring-primary",
+        getStatusColor(post.status)
+      )}
+    >
+      <div className="flex items-center gap-1">
+        {platformLogo && (
+          <Image
+            src={platformLogo}
+            alt={post.platform}
+            width={12}
+            height={12}
+            className="shrink-0"
+          />
+        )}
+        <span className="truncate font-medium">{post.title}</span>
+        <GripVertical className="w-3 h-3 shrink-0 opacity-70" />
+      </div>
+    </div>
+  );
+}
+
+// Calendar Day Component (Droppable)
+interface CalendarDayProps {
+  day: Date;
+  posts: Post[];
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  onPostClick: (post: Post) => void;
+  isOver?: boolean;
+}
+
+function CalendarDay({
+  day,
+  posts,
+  isCurrentMonth,
+  isToday,
+  onPostClick,
+  isOver,
+}: CalendarDayProps) {
+  const dateKey = getDateKey(day);
+  const { setNodeRef, isOver: isOverDroppable } = useDroppable({
+    id: dateKey,
+  });
+
+  const sortedPosts = useMemo(
+    () => [...posts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [posts]
+  );
+
+  const showHighlight = isOver || isOverDroppable;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "min-h-[120px] p-2 border-r last:border-r-0 transition-colors",
+        !isCurrentMonth && "bg-muted/30",
+        isToday && "bg-blue-50 dark:bg-blue-950/20",
+        showHighlight && "bg-primary/10"
+      )}
+    >
+      <div
+        className={cn(
+          "text-sm font-medium mb-2",
+          isToday &&
+            "bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+        )}
+      >
+        {day.getDate()}
+      </div>
+
+      <SortableContext
+        items={sortedPosts.map((p) => p.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="space-y-1">
+          {sortedPosts.map((post) => (
+            <SortableCalendarPostCard
+              key={post.id}
+              post={post}
+              onClick={() => onPostClick(post)}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </div>
+  );
+}
 
 export default function CalendarPage() {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const {
+    openPost,
+    close,
+    setPostContent: updateSidebarPost,
+  } = useRightSidebar();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+  // Drag state
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   // Form state
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [platform, setPlatform] = useState("instagram");
   const [scheduledDate, setScheduledDate] = useState("");
+
+  // DnD Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Get start and end of current month
   const getMonthRange = (date: Date) => {
@@ -145,36 +396,290 @@ export default function CalendarPage() {
     return days;
   };
 
-  // Get posts for a specific day
-  const getPostsForDay = (day: Date) => {
-    return posts.filter((post) => {
-      if (!post.scheduledDate) return false;
-      const postDate = new Date(post.scheduledDate);
-      return (
-        postDate.getDate() === day.getDate() &&
-        postDate.getMonth() === day.getMonth() &&
-        postDate.getFullYear() === day.getFullYear()
-      );
+  // Group posts by date key
+  const postsByDate = useMemo(() => {
+    const grouped: Record<string, Post[]> = {};
+    posts.forEach((post) => {
+      if (post.scheduledDate) {
+        const key = getDateKey(new Date(post.scheduledDate));
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(post);
+      }
     });
+    return grouped;
+  }, [posts]);
+
+  // Get the active post being dragged
+  const activePost = useMemo(() => {
+    if (!activeId) return null;
+    return posts.find((p) => p.id === activeId) || null;
+  }, [activeId, posts]);
+
+  // Post editor handlers
+  const handleStatusChange = useCallback(
+    async (postId: string, newStatus: PostStatus) => {
+      try {
+        const targetPosts = posts.filter((p) => p.status === newStatus);
+        const maxOrder = Math.max(...targetPosts.map((p) => p.order ?? 0), -1);
+
+        await reorderPosts([
+          { id: postId, order: maxOrder + 1, status: newStatus },
+        ]);
+
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? { ...p, status: newStatus, order: maxOrder + 1 }
+              : p
+          )
+        );
+        toast.success("Status updated!");
+      } catch (error) {
+        console.error("Error updating status:", error);
+        toast.error("Failed to update status");
+      }
+    },
+    [posts]
+  );
+
+  const handleSavePost = useCallback((updatedPost: Post) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+    );
+  }, []);
+
+  const handleDeletePost = useCallback(
+    async (postId: string) => {
+      try {
+        await deletePost(postId);
+        setPosts((prev) => prev.filter((p) => p.id !== postId));
+        close();
+        toast.success("Post deleted");
+      } catch (error) {
+        console.error("Error deleting post:", error);
+        toast.error("Failed to delete post");
+      }
+    },
+    [close]
+  );
+
+  const handleCloseEditor = useCallback(() => {
+    setSelectedPost(null);
+    close();
+  }, [close]);
+
+  // Update sidebar content when selected post changes
+  useEffect(() => {
+    if (selectedPost) {
+      const currentPost = posts.find((p) => p.id === selectedPost.id);
+      if (currentPost) {
+        updateSidebarPost(
+          <PostEditor
+            post={currentPost}
+            onSave={handleSavePost}
+            onDelete={handleDeletePost}
+            onStatusChange={handleStatusChange}
+            onClose={handleCloseEditor}
+          />
+        );
+      }
+    }
+  }, [
+    selectedPost,
+    posts,
+    updateSidebarPost,
+    handleSavePost,
+    handleDeletePost,
+    handleStatusChange,
+    handleCloseEditor,
+  ]);
+
+  const handleOpenPost = (post: Post) => {
+    setSelectedPost(post);
+    openPost(
+      <PostEditor
+        post={post}
+        onSave={handleSavePost}
+        onDelete={handleDeletePost}
+        onStatusChange={handleStatusChange}
+        onClose={handleCloseEditor}
+      />
+    );
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      idea: "bg-blue-500/20 border-blue-500/50 text-blue-700 dark:text-blue-300",
-      draft:
-        "bg-yellow-500/20 border-yellow-500/50 text-yellow-700 dark:text-yellow-300",
-      ready:
-        "bg-green-500/20 border-green-500/50 text-green-700 dark:text-green-300",
-      posted:
-        "bg-purple-500/20 border-purple-500/50 text-purple-700 dark:text-purple-300",
-    };
-    return colors[status as keyof typeof colors] || colors.idea;
+  // DnD Handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
-  const getPlatformIcon = (platformId: string) => {
-    const platform = PLATFORMS.find((p) => p.id === platformId);
-    return platform?.logo;
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    setOverId(over?.id as string | null);
   };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    setActiveId(null);
+    setOverId(null);
+
+    if (!over) return;
+
+    const activePostId = active.id as string;
+    const overId = over.id as string;
+
+    const draggedPost = posts.find((p) => p.id === activePostId);
+    if (!draggedPost || !draggedPost.scheduledDate) return;
+
+    // Check if dropped over a date cell or another post
+    const isOverDateCell = overId.match(/^\d{4}-\d{2}-\d{2}$/);
+    const overPost = posts.find((p) => p.id === overId);
+
+    let targetDateKey: string;
+    let targetIndex: number;
+
+    if (isOverDateCell) {
+      // Dropped on a date cell
+      targetDateKey = overId;
+      const targetPosts = postsByDate[targetDateKey] || [];
+      targetIndex = targetPosts.length;
+    } else if (overPost && overPost.scheduledDate) {
+      // Dropped on another post
+      targetDateKey = getDateKey(new Date(overPost.scheduledDate));
+      const targetPosts = (postsByDate[targetDateKey] || []).sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0)
+      );
+      targetIndex = targetPosts.findIndex((p) => p.id === overId);
+    } else {
+      return;
+    }
+
+    const sourceDateKey = getDateKey(new Date(draggedPost.scheduledDate));
+
+    // Parse target date
+    const [year, month, day] = targetDateKey.split("-").map(Number);
+    const targetDate = new Date(draggedPost.scheduledDate);
+    targetDate.setFullYear(year, month - 1, day);
+
+    // Check if date changed
+    const dateChanged = sourceDateKey !== targetDateKey;
+
+    // Check if position changed in same day
+    const sourcePosts = (postsByDate[sourceDateKey] || []).sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0)
+    );
+    const sourceIndex = sourcePosts.findIndex((p) => p.id === activePostId);
+
+    if (!dateChanged && sourceIndex === targetIndex) {
+      return; // No change
+    }
+
+    // Optimistic update
+    const newPosts = [...posts];
+
+    if (dateChanged) {
+      // Move to different day
+      const postIndex = newPosts.findIndex((p) => p.id === activePostId);
+      newPosts[postIndex] = {
+        ...newPosts[postIndex],
+        scheduledDate: targetDate,
+        order: targetIndex,
+      };
+
+      // Update source day orders
+      const sourceUpdates: Array<{
+        id: string;
+        order: number;
+        status?: PostStatus;
+      }> = [];
+      sourcePosts
+        .filter((p) => p.id !== activePostId)
+        .forEach((post, index) => {
+          const idx = newPosts.findIndex((p) => p.id === post.id);
+          newPosts[idx] = { ...newPosts[idx], order: index };
+          sourceUpdates.push({ id: post.id, order: index });
+        });
+
+      // Update target day orders
+      const targetPosts = [
+        ...(postsByDate[targetDateKey] || []).sort(
+          (a, b) => (a.order ?? 0) - (b.order ?? 0)
+        ),
+      ];
+      targetPosts.splice(targetIndex, 0, {
+        ...draggedPost,
+        scheduledDate: targetDate,
+      });
+
+      const targetUpdates: Array<{
+        id: string;
+        order: number;
+        status?: PostStatus;
+      }> = [];
+      targetPosts.forEach((post, index) => {
+        const idx = newPosts.findIndex((p) => p.id === post.id);
+        newPosts[idx] = { ...newPosts[idx], order: index };
+        targetUpdates.push({ id: post.id, order: index });
+      });
+
+      setPosts(newPosts);
+
+      try {
+        // Update scheduled date
+        await updatePost(activePostId, { scheduledDate: targetDate });
+        // Update orders
+        await reorderPosts([...sourceUpdates, ...targetUpdates]);
+        toast.success("Post moved!");
+      } catch (error) {
+        console.error("Error moving post:", error);
+        toast.error("Failed to move post");
+        loadPosts();
+      }
+    } else {
+      // Reorder within same day
+      const dayPosts = [...sourcePosts];
+      dayPosts.splice(sourceIndex, 1);
+      dayPosts.splice(targetIndex, 0, draggedPost);
+
+      const updates: Array<{ id: string; order: number; status?: PostStatus }> =
+        [];
+      dayPosts.forEach((post, index) => {
+        const idx = newPosts.findIndex((p) => p.id === post.id);
+        newPosts[idx] = { ...newPosts[idx], order: index };
+        updates.push({ id: post.id, order: index });
+      });
+
+      setPosts(newPosts);
+
+      try {
+        await reorderPosts(updates);
+      } catch (error) {
+        console.error("Error reordering posts:", error);
+        toast.error("Failed to reorder posts");
+        loadPosts();
+      }
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setOverId(null);
+  };
+
+  // Determine which date cell is being hovered
+  const getOverDateKey = (): string | null => {
+    if (!overId) return null;
+    if (overId.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return overId;
+    }
+    const overPost = posts.find((p) => p.id === overId);
+    if (overPost?.scheduledDate) {
+      return getDateKey(new Date(overPost.scheduledDate));
+    }
+    return null;
+  };
+
+  const overDateKey = getOverDateKey();
 
   const weeks = getWeeksInMonth();
   const monthName = currentDate.toLocaleDateString("en-US", {
@@ -312,94 +817,74 @@ export default function CalendarPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Calendar Grid */}
-      <div className="border rounded-lg overflow-hidden">
-        {/* Weekday Headers */}
-        <div className="grid grid-cols-7 border-b bg-muted">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-            <div
-              key={day}
-              className="p-2 text-center text-sm font-medium border-r last:border-r-0"
-            >
-              {day}
+      {/* Calendar Grid with DnD */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <div className="border rounded-lg overflow-hidden">
+          {/* Weekday Headers */}
+          <div className="grid grid-cols-7 border-b bg-muted">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+              <div
+                key={day}
+                className="p-2 text-center text-sm font-medium border-r last:border-r-0"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar Days */}
+          {loadingPosts ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ))}
+          ) : (
+            weeks.map((week, weekIndex) => {
+              const days = getDaysInWeek(week);
+              return (
+                <div
+                  key={weekIndex}
+                  className="grid grid-cols-7 border-b last:border-b-0"
+                >
+                  {days.map((day, dayIndex) => {
+                    const dateKey = getDateKey(day);
+                    const dayPosts = postsByDate[dateKey] || [];
+                    const isCurrentMonth =
+                      day.getMonth() === currentDate.getMonth();
+                    const isToday =
+                      day.getDate() === new Date().getDate() &&
+                      day.getMonth() === new Date().getMonth() &&
+                      day.getFullYear() === new Date().getFullYear();
+
+                    return (
+                      <CalendarDay
+                        key={dayIndex}
+                        day={day}
+                        posts={dayPosts}
+                        isCurrentMonth={isCurrentMonth}
+                        isToday={isToday}
+                        onPostClick={handleOpenPost}
+                        isOver={overDateKey === dateKey && activeId !== null}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })
+          )}
         </div>
 
-        {/* Calendar Days */}
-        {loadingPosts ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          weeks.map((week, weekIndex) => {
-            const days = getDaysInWeek(week);
-            return (
-              <div
-                key={weekIndex}
-                className="grid grid-cols-7 border-b last:border-b-0"
-              >
-                {days.map((day, dayIndex) => {
-                  const dayPosts = getPostsForDay(day);
-                  const isCurrentMonth =
-                    day.getMonth() === currentDate.getMonth();
-                  const isToday =
-                    day.getDate() === new Date().getDate() &&
-                    day.getMonth() === new Date().getMonth() &&
-                    day.getFullYear() === new Date().getFullYear();
-
-                  return (
-                    <div
-                      key={dayIndex}
-                      className={`min-h-[120px] p-2 border-r last:border-r-0 ${
-                        isCurrentMonth ? "" : "bg-muted/30"
-                      } ${isToday ? "bg-blue-50 dark:bg-blue-950/20" : ""}`}
-                    >
-                      <div
-                        className={`text-sm font-medium mb-2 ${
-                          isToday
-                            ? "bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                            : ""
-                        }`}
-                      >
-                        {day.getDate()}
-                      </div>
-
-                      <div className="space-y-1">
-                        {dayPosts.map((post) => {
-                          const platformLogo = getPlatformIcon(post.platform);
-                          return (
-                            <div
-                              key={post.id}
-                              className={`p-1.5 rounded border text-xs ${getStatusColor(
-                                post.status
-                              )}`}
-                            >
-                              <div className="flex items-center gap-1">
-                                {platformLogo && (
-                                  <Image
-                                    src={platformLogo}
-                                    alt={post.platform}
-                                    width={12}
-                                    height={12}
-                                  />
-                                )}
-                                <span className="truncate font-medium">
-                                  {post.title}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })
-        )}
-      </div>
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {activePost ? <CalendarPostCardOverlay post={activePost} /> : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Legend */}
       <div className="flex items-center gap-4 text-sm flex-wrap">
