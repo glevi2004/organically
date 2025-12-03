@@ -9,6 +9,7 @@ import {
   orderBy,
   deleteDoc,
   updateDoc,
+  writeBatch,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
@@ -24,10 +25,21 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
     const postId = doc(collection(db, POSTS_COLLECTION)).id;
     const now = new Date();
 
+    // Get existing posts count for this status to set order
+    const existingPosts = await getDocs(
+      query(
+        collection(db, POSTS_COLLECTION),
+        where("profileId", "==", input.profileId),
+        where("status", "==", input.status || "idea")
+      )
+    );
+    const order = existingPosts.size;
+
     const post: Post = {
       id: postId,
       ...input,
       status: input.status || "idea",
+      order,
       createdAt: now,
       updatedAt: now,
     };
@@ -65,6 +77,7 @@ export async function getPost(postId: string): Promise<Post | null> {
     return {
       id: docSnap.id,
       ...data,
+      order: data.order ?? 0,
       createdAt: data.createdAt.toDate(),
       updatedAt: data.updatedAt.toDate(),
       scheduledDate: data.scheduledDate?.toDate(),
@@ -95,6 +108,7 @@ export async function getPostsByProfile(profileId: string): Promise<Post[]> {
       posts.push({
         id: doc.id,
         ...data,
+        order: data.order ?? 0,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate(),
         scheduledDate: data.scheduledDate?.toDate(),
@@ -134,6 +148,7 @@ export async function getPostsByDateRange(
       posts.push({
         id: doc.id,
         ...data,
+        order: data.order ?? 0,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate(),
         scheduledDate: data.scheduledDate?.toDate(),
@@ -206,6 +221,58 @@ export async function updatePostStatus(
     }
   } catch (error) {
     console.error("Error updating post status:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update a single post's order
+ */
+export async function updatePostOrder(
+  postId: string,
+  order: number
+): Promise<void> {
+  try {
+    await updatePost(postId, { order });
+  } catch (error) {
+    console.error("Error updating post order:", error);
+    throw error;
+  }
+}
+
+/**
+ * Batch update post orders (used after drag and drop)
+ */
+export async function reorderPosts(
+  posts: Array<{ id: string; order: number; status?: PostStatus }>
+): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    const now = Timestamp.fromDate(new Date());
+
+    for (const post of posts) {
+      const docRef = doc(db, POSTS_COLLECTION, post.id);
+      const updateData: any = {
+        order: post.order,
+        updatedAt: now,
+      };
+
+      // If status is provided, update it as well
+      if (post.status !== undefined) {
+        updateData.status = post.status;
+
+        // If marking as posted, set postedDate
+        if (post.status === "posted") {
+          updateData.postedDate = now;
+        }
+      }
+
+      batch.update(docRef, updateData);
+    }
+
+    await batch.commit();
+  } catch (error) {
+    console.error("Error reordering posts:", error);
     throw error;
   }
 }
