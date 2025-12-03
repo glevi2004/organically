@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
@@ -39,6 +39,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Home,
   Settings,
   ChevronRight,
@@ -63,6 +68,7 @@ import { ProfileSwitcher } from "@/components/profile/ProfileSwitcher";
 // Create a context to share the left sidebar's toggle function
 const LeftSidebarContext = React.createContext<{
   toggleLeftSidebar: () => void;
+  isLeftSidebarOpen: boolean;
 } | null>(null);
 
 export function useLeftSidebar() {
@@ -78,24 +84,39 @@ export function LeftSidebarProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, open } = useSidebar();
 
   return (
-    <LeftSidebarContext.Provider value={{ toggleLeftSidebar: toggleSidebar }}>
+    <LeftSidebarContext.Provider
+      value={{ toggleLeftSidebar: toggleSidebar, isLeftSidebarOpen: open }}
+    >
       {children}
     </LeftSidebarContext.Provider>
   );
 }
 
-export function LeftSidebarTrigger({ className }: { className?: string }) {
-  const { toggleLeftSidebar } = useLeftSidebar();
+export function LeftSidebarTrigger({
+  className,
+  onBeforeOpen,
+}: {
+  className?: string;
+  onBeforeOpen?: () => void;
+}) {
+  const { toggleLeftSidebar, isLeftSidebarOpen } = useLeftSidebar();
+
+  const handleToggle = () => {
+    if (!isLeftSidebarOpen && onBeforeOpen) {
+      onBeforeOpen();
+    }
+    toggleLeftSidebar();
+  };
 
   return (
     <Button
       variant="ghost"
       size="icon"
       className={className}
-      onClick={toggleLeftSidebar}
+      onClick={handleToggle}
     >
       <PanelLeftIcon />
       <span className="sr-only">Toggle Left Sidebar</span>
@@ -150,6 +171,8 @@ function AppSidebarContent() {
   const { user } = useAuth();
   const { activeProfile } = useProfile();
   const router = useRouter();
+  const pathname = usePathname();
+  const { open: isSidebarOpen } = useSidebar();
 
   const handleSignOut = async () => {
     try {
@@ -194,27 +217,42 @@ function AppSidebarContent() {
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarMenu>
             {navMain.map((item) => {
+              const isActive = pathname === item.url;
+              const isParentActive =
+                item.items?.some((sub) => pathname === sub.url) || false;
+
               // If item has sub-items, render as collapsible (Settings)
               if (item.items && item.items.length > 0) {
                 return (
                   <Collapsible
                     key={item.title}
                     asChild
+                    defaultOpen={isParentActive}
                     className="group/collapsible"
                   >
                     <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton>
-                          {item.icon && <item.icon />}
-                          <span>{item.title}</span>
-                          <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90" />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
+                      <Tooltip open={isSidebarOpen ? false : undefined}>
+                        <TooltipTrigger asChild>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton isActive={isParentActive}>
+                              {item.icon && <item.icon />}
+                              <span>{item.title}</span>
+                              <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <p>{item.title}</p>
+                        </TooltipContent>
+                      </Tooltip>
                       <CollapsibleContent>
                         <SidebarMenuSub>
                           {item.items.map((subItem) => (
                             <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton asChild>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={pathname === subItem.url}
+                              >
                                 <Link href={subItem.url}>
                                   <span>{subItem.title}</span>
                                 </Link>
@@ -230,12 +268,19 @@ function AppSidebarContent() {
               // Otherwise, render as simple button (Home, Analytics, etc.)
               return (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.url}>
-                      {item.icon && <item.icon />}
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <Tooltip open={isSidebarOpen ? false : undefined}>
+                    <TooltipTrigger asChild>
+                      <SidebarMenuButton asChild isActive={isActive}>
+                        <Link href={item.url}>
+                          {item.icon && <item.icon />}
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>{item.title}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </SidebarMenuItem>
               );
             })}
