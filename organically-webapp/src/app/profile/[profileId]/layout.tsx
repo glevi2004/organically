@@ -19,7 +19,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { AppSidebar } from "@/components/navigation/app-sidebar";
+import {
+  AppSidebar,
+  LeftSidebarTrigger,
+  LeftSidebarProvider,
+} from "@/components/navigation/app-sidebar";
 import { RightSidebar } from "@/components/navigation/right-sidebar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -95,54 +99,58 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <>
       <SidebarProvider>
-        <AppSidebar />
-        <div className="flex-1 flex flex-col">
-          <SidebarProvider>
-            <div className="flex-1 flex">
-              <SidebarInset className="flex-1">
-                <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-                  <div className="flex items-center gap-2 px-4">
-                    <SidebarTrigger className="-ml-1" />
-                    <Separator orientation="vertical" className="mr-2 h-4" />
-                    <Breadcrumb>
-                      <BreadcrumbList>
-                        <BreadcrumbItem>
-                          {nestedPageTitle ? (
-                            <BreadcrumbLink
-                              href={`/profile/${profileId}/${pageSegments[0]}`}
-                              className="text-xl font-semibold"
-                            >
-                              {pageTitle}
-                            </BreadcrumbLink>
-                          ) : (
-                            <BreadcrumbPage className="text-xl font-semibold">
-                              {pageTitle}
-                            </BreadcrumbPage>
+        <LeftSidebarProvider>
+          <AppSidebar />
+          <div className="flex-1 flex flex-col">
+            <SidebarProvider>
+              <div className="flex-1 flex">
+                <SidebarInset className="flex-1">
+                  <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+                    <div className="flex items-center gap-2 px-4">
+                      <LeftSidebarTrigger className="-ml-1" />
+                      <Separator orientation="vertical" className="mr-2 h-4" />
+                      <Breadcrumb>
+                        <BreadcrumbList>
+                          <BreadcrumbItem>
+                            {nestedPageTitle ? (
+                              <BreadcrumbLink
+                                href={`/profile/${profileId}/${pageSegments[0]}`}
+                                className="text-xl font-semibold"
+                              >
+                                {pageTitle}
+                              </BreadcrumbLink>
+                            ) : (
+                              <BreadcrumbPage className="text-xl font-semibold">
+                                {pageTitle}
+                              </BreadcrumbPage>
+                            )}
+                          </BreadcrumbItem>
+                          {nestedPageTitle && (
+                            <>
+                              <BreadcrumbSeparator />
+                              <BreadcrumbItem>
+                                <BreadcrumbPage>
+                                  {nestedPageTitle}
+                                </BreadcrumbPage>
+                              </BreadcrumbItem>
+                            </>
                           )}
-                        </BreadcrumbItem>
-                        {nestedPageTitle && (
-                          <>
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                              <BreadcrumbPage>{nestedPageTitle}</BreadcrumbPage>
-                            </BreadcrumbItem>
-                          </>
-                        )}
-                      </BreadcrumbList>
-                    </Breadcrumb>
+                        </BreadcrumbList>
+                      </Breadcrumb>
+                    </div>
+                    <div className="flex items-center gap-2 px-4">
+                      <SidebarTrigger className="-mr-1" />
+                    </div>
+                  </header>
+                  <div className="flex flex-1 flex-col gap-4 p-16 pt-0">
+                    {children}
                   </div>
-                  <div className="flex items-center gap-2 px-4">
-                    <SidebarTrigger className="-mr-1" />
-                  </div>
-                </header>
-                <div className="flex flex-1 flex-col gap-4 p-16 pt-0">
-                  {children}
-                </div>
-              </SidebarInset>
-              <RightSidebar />
-            </div>
-          </SidebarProvider>
-        </div>
+                </SidebarInset>
+                <RightSidebar />
+              </div>
+            </SidebarProvider>
+          </div>
+        </LeftSidebarProvider>
       </SidebarProvider>
     </>
   );
