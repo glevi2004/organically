@@ -54,7 +54,6 @@ import {
   Globe,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { ModeToggle } from "@/components/theme/mode-toggle";
 import { ProfileSwitcher } from "@/components/profile/ProfileSwitcher";
 
@@ -63,11 +62,6 @@ const getNavMain = (profileId: string) => [
     title: "Home",
     url: `/profile/${profileId}/home`,
     icon: Home,
-  },
-  {
-    title: "Analytics",
-    url: `/profile/${profileId}/analytics`,
-    icon: BarChart3,
   },
   {
     title: "Idea Dump",
@@ -110,7 +104,6 @@ export function AppSidebar() {
   const { user } = useAuth();
   const { activeProfile } = useProfile();
   const router = useRouter();
-  const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
     try {
@@ -238,7 +231,7 @@ export function AppSidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side={isMobile ? "bottom" : "right"}
+                side="right"
                 align="end"
                 sideOffset={4}
               >

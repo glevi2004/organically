@@ -2,20 +2,7 @@
 
 import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
-
-const AGE_RANGES = [
-  { id: "gen_z", label: "Gen Z (13–28)", icon: "🎮" },
-  { id: "millennials", label: "Millennials (29–44)", icon: "💼" },
-  { id: "gen_x", label: "Gen X (45–60)", icon: "📚" },
-  { id: "boomers", label: "Boomers (61–79)", icon: "🏡" },
-];
-
-const GENDERS = [
-  { id: "all", label: "All genders", icon: "🌍" },
-  { id: "male", label: "Male", icon: "👨" },
-  { id: "female", label: "Female", icon: "👩" },
-  { id: "other", label: "Other", icon: "🌈" },
-];
+import { AGE_RANGES, GENDERS } from "@/lib/profile-constants";
 
 interface Step4Data {
   targetAudience: {

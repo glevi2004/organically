@@ -37,11 +37,18 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
   const profileId = params.profileId as string;
 
   // Get current page from URL for breadcrumb
-  const currentPage = pathname.split("/").pop() || "home";
-  const pageTitle = currentPage
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const pathSegments = pathname.split("/").filter(Boolean);
+  // Remove 'profile' and profileId from segments to get actual page path
+  const pageSegments = pathSegments.slice(2); // Everything after /profile/[profileId]
+
+  const formatTitle = (segment: string) =>
+    segment
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+  const pageTitle = formatTitle(pageSegments[0] || "home");
+  const nestedPageTitle = pageSegments[1] ? formatTitle(pageSegments[1]) : null;
 
   useEffect(() => {
     async function validateProfile() {
@@ -94,20 +101,33 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
             <Separator orientation="vertical" className="mr-2 h-4" />
             <Breadcrumb>
               <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href={`/profile/${profileId}/home`}>
-                    {activeProfile?.name || "Profile"}
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
+                  {nestedPageTitle ? (
+                    <BreadcrumbLink
+                      href={`/profile/${profileId}/${pageSegments[0]}`}
+                      className="text-xl font-semibold"
+                    >
+                      {pageTitle}
+                    </BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbPage className="text-xl font-semibold">
+                      {pageTitle}
+                    </BreadcrumbPage>
+                  )}
                 </BreadcrumbItem>
+                {nestedPageTitle && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{nestedPageTitle}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                )}
               </BreadcrumbList>
             </Breadcrumb>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>
+        <div className="flex flex-1 flex-col gap-4 p-16 pt-0">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

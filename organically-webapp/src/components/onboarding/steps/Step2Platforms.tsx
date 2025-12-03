@@ -3,34 +3,7 @@
 import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
 import Image from "next/image";
-
-const PLATFORMS = [
-  {
-    id: "instagram",
-    name: "Instagram",
-    logo: "/logos/instagram.svg",
-  },
-  {
-    id: "tiktok",
-    name: "TikTok",
-    logo: "/logos/tiktok.svg",
-  },
-  {
-    id: "youtube",
-    name: "YouTube",
-    logo: "/logos/youtube.svg",
-  },
-  {
-    id: "x",
-    name: "X (Twitter)",
-    logo: "/logos/x.svg",
-  },
-  {
-    id: "linkedin",
-    name: "LinkedIn",
-    logo: "/logos/linkedin.svg",
-  },
-];
+import { PLATFORMS } from "@/lib/profile-constants";
 
 interface Step2Data {
   platforms: string[];

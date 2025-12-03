@@ -1,45 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-
-const CONTENT_TYPES = [
-  {
-    id: "short_form_video",
-    label: "Short-form video",
-    description: "TikToks, Reels, Shorts",
-    icon: "📱",
-  },
-  {
-    id: "long_form_video",
-    label: "Long-form video",
-    description: "YouTube videos, tutorials",
-    icon: "🎥",
-  },
-  {
-    id: "stories",
-    label: "Stories",
-    description: "Instagram/Facebook Stories",
-    icon: "📸",
-  },
-  {
-    id: "carousels",
-    label: "Carousels",
-    description: "Multi-image posts",
-    icon: "🎠",
-  },
-  {
-    id: "text_posts",
-    label: "Text posts / Threads",
-    description: "Written content, threads",
-    icon: "✍️",
-  },
-  {
-    id: "podcasts",
-    label: "Podcasts",
-    description: "Audio content",
-    icon: "🎙️",
-  },
-];
+import { CONTENT_TYPES } from "@/lib/profile-constants";
 
 interface Step5Data {
   contentTypes: string[];

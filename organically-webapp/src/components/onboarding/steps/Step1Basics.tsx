@@ -5,15 +5,7 @@ import { Label } from "@/components/ui/label";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const NICHES = [
-  { id: "fitness", label: "Fitness" },
-  { id: "tech", label: "Tech" },
-  { id: "lifestyle", label: "Lifestyle" },
-  { id: "business", label: "Business" },
-  { id: "education", label: "Education" },
-  { id: "entertainment", label: "Entertainment" },
-];
+import { NICHES } from "@/lib/profile-constants";
 
 interface Step1Data {
   name: string;
@@ -126,6 +118,7 @@ export function Step1Basics({ data, onDataChange }: Step1BasicsProps) {
                   : "border-border hover:border-emerald-300"
               )}
             >
+              <span className="text-xl">{niche.icon}</span>
               <span className="text-sm font-medium">{niche.label}</span>
               {(data.niche || []).includes(niche.id) && (
                 <Check className="w-4 h-4 text-emerald-500" />

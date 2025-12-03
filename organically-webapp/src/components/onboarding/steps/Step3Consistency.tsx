@@ -1,36 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-
-const CONSISTENCY_LEVELS = [
-  {
-    id: "casual",
-    name: "Casual Cruiser",
-    description: "Grow with minimal effort — chill pace, zero overwhelm.",
-    frequency: "~3 posts/week",
-    growth: "⭐ Slow",
-    bestFor: "Busy people who want gentle, low-pressure consistency.",
-    color: "from-blue-500 to-cyan-500",
-  },
-  {
-    id: "steady",
-    name: "Steady Grinder",
-    description: "Steady, creator-mode posting with real momentum.",
-    frequency: "1–2 posts/day",
-    growth: "⭐⭐ Moderate–Fast",
-    bestFor: "People who want predictable growth and are ready to show up regularly.",
-    color: "from-emerald-500 to-green-600",
-  },
-  {
-    id: "aggressive",
-    name: "Algorithm Soldier",
-    description: "Go all-in, post aggressively, and maximize reach everywhere.",
-    frequency: "3–6 posts/day",
-    growth: "⭐⭐⭐ Very Fast",
-    bestFor: "Launch mode, startups, or anyone grinding like the algorithm owes them money.",
-    color: "from-orange-500 to-red-600",
-  },
-];
+import { CONSISTENCY_LEVELS } from "@/lib/profile-constants";
 
 interface Step3Data {
   consistencyLevel: string;

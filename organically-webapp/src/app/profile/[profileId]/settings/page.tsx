@@ -17,8 +17,6 @@ import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 
-const EMOJI_OPTIONS = ["🌱", "💼", "🚀", "🎨", "📱", "💡", "🎯", "⚡", "🔥", "✨"];
-
 const PLATFORMS = [
   { id: "instagram", name: "Instagram", icon: "📸" },
   { id: "tiktok", name: "TikTok", icon: "🎵" },
@@ -63,20 +61,29 @@ export default function SettingsPage() {
 
   // General settings
   const [name, setName] = useState(activeProfile?.name || "");
-  const [icon, setIcon] = useState(activeProfile?.icon || "🌱");
 
   // Platforms
-  const [platforms, setPlatforms] = useState<string[]>(activeProfile?.platforms || []);
+  const [platforms, setPlatforms] = useState<string[]>(
+    activeProfile?.platforms || []
+  );
 
   // Consistency
-  const [consistencyLevel, setConsistencyLevel] = useState(activeProfile?.consistencyLevel || "");
+  const [consistencyLevel, setConsistencyLevel] = useState(
+    activeProfile?.consistencyLevel || ""
+  );
 
   // Audience
-  const [ageRanges, setAgeRanges] = useState<string[]>(activeProfile?.targetAudience?.ageRanges || []);
-  const [genders, setGenders] = useState<string[]>(activeProfile?.targetAudience?.genders || []);
+  const [ageRanges, setAgeRanges] = useState<string[]>(
+    activeProfile?.targetAudience?.ageRanges || []
+  );
+  const [genders, setGenders] = useState<string[]>(
+    activeProfile?.targetAudience?.genders || []
+  );
 
   // Content Types
-  const [contentTypes, setContentTypes] = useState<string[]>(activeProfile?.contentTypes || []);
+  const [contentTypes, setContentTypes] = useState<string[]>(
+    activeProfile?.contentTypes || []
+  );
 
   const handleSaveGeneral = async () => {
     if (!activeProfile || !name.trim()) {
@@ -86,7 +93,7 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
-      await updateProfile(activeProfile.id, { name: name.trim(), icon });
+      await updateProfile(activeProfile.id, { name: name.trim() });
       await refreshProfiles();
       toast.success("Profile updated successfully!");
     } catch (error) {
@@ -121,7 +128,9 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
-      await updateProfile(activeProfile.id, { consistencyLevel: consistencyLevel as any });
+      await updateProfile(activeProfile.id, {
+        consistencyLevel: consistencyLevel as any,
+      });
       await refreshProfiles();
       toast.success("Consistency level updated successfully!");
     } catch (error) {
@@ -166,7 +175,11 @@ export default function SettingsPage() {
     }
   };
 
-  const toggleItem = (items: string[], item: string, setItems: (items: string[]) => void) => {
+  const toggleItem = (
+    items: string[],
+    item: string,
+    setItems: (items: string[]) => void
+  ) => {
     if (items.includes(item)) {
       setItems(items.filter((i) => i !== item));
     } else {
@@ -197,31 +210,9 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Profile Settings</CardTitle>
-              <CardDescription>
-                Update your profile name and icon
-              </CardDescription>
+              <CardDescription>Update your profile name</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Profile Icon</Label>
-                <div className="flex gap-2 flex-wrap">
-                  {EMOJI_OPTIONS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setIcon(emoji)}
-                      className={`text-2xl p-2 rounded-lg border-2 transition-all hover:scale-110 ${
-                        icon === emoji
-                          ? "border-emerald-500 bg-emerald-500/10"
-                          : "border-border hover:border-emerald-300"
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="profile-name">Profile Name</Label>
                 <Input
@@ -258,7 +249,9 @@ export default function SettingsPage() {
                   <button
                     key={platform.id}
                     type="button"
-                    onClick={() => toggleItem(platforms, platform.id, setPlatforms)}
+                    onClick={() =>
+                      toggleItem(platforms, platform.id, setPlatforms)
+                    }
                     className={`p-4 rounded-lg border-2 transition-all ${
                       platforms.includes(platform.id)
                         ? "border-emerald-500 bg-emerald-500/10"
@@ -292,9 +285,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Consistency Level</CardTitle>
-              <CardDescription>
-                How often do you want to post?
-              </CardDescription>
+              <CardDescription>How often do you want to post?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
@@ -347,7 +338,9 @@ export default function SettingsPage() {
                     <button
                       key={age.id}
                       type="button"
-                      onClick={() => toggleItem(ageRanges, age.id, setAgeRanges)}
+                      onClick={() =>
+                        toggleItem(ageRanges, age.id, setAgeRanges)
+                      }
                       className={`p-3 rounded-lg border-2 transition-all ${
                         ageRanges.includes(age.id)
                           ? "border-emerald-500 bg-emerald-500/10"
@@ -378,7 +371,9 @@ export default function SettingsPage() {
                         } else {
                           let newGenders = genders.filter((g) => g !== "all");
                           if (newGenders.includes(gender.id)) {
-                            newGenders = newGenders.filter((g) => g !== gender.id);
+                            newGenders = newGenders.filter(
+                              (g) => g !== gender.id
+                            );
                           } else {
                             newGenders = [...newGenders, gender.id];
                           }
@@ -392,7 +387,9 @@ export default function SettingsPage() {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{gender.label}</span>
+                        <span className="text-sm font-medium">
+                          {gender.label}
+                        </span>
                         {genders.includes(gender.id) && (
                           <Check className="w-4 h-4 text-emerald-500" />
                         )}
@@ -428,7 +425,9 @@ export default function SettingsPage() {
                   <button
                     key={type.id}
                     type="button"
-                    onClick={() => toggleItem(contentTypes, type.id, setContentTypes)}
+                    onClick={() =>
+                      toggleItem(contentTypes, type.id, setContentTypes)
+                    }
                     className={`p-3 rounded-lg border-2 transition-all ${
                       contentTypes.includes(type.id)
                         ? "border-emerald-500 bg-emerald-500/10"
