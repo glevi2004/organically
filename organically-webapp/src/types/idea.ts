@@ -3,7 +3,8 @@ export interface Idea {
   profileId: string;
   userId: string;
   title: string;
-  description: string;
+  content: string;
+  order: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -12,5 +13,5 @@ export interface CreateIdeaInput {
   profileId: string;
   userId: string;
   title: string;
-  description: string;
+  content?: string;
 }
