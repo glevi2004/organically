@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { PanelRight } from "lucide-react";
+import { Bot, PanelRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import {
@@ -42,27 +42,39 @@ const RIGHT_SIDEBAR_DEFAULT_WIDTH = 400; // pixels
 const RIGHT_SIDEBAR_MIN_WIDTH = 320;
 const RIGHT_SIDEBAR_MAX_WIDTH = 600;
 
-// Button that toggles right sidebar and closes left sidebar when opening
-function RightSidebarToggle() {
-  const { toggle, isOpen } = useRightSidebar();
+// Floating AI button (shown when sidebar is closed)
+function FloatingAIButton() {
+  const { open, isOpen } = useRightSidebar();
   const { setOpen: setLeftOpen } = useSidebar();
 
+  if (isOpen) return null;
+
   const handleClick = () => {
-    if (!isOpen) {
-      setLeftOpen(false);
-    }
-    toggle();
+    setLeftOpen(false);
+    open();
   };
 
   return (
     <Button
-      variant="ghost"
-      size="icon"
       onClick={handleClick}
-      className="size-7"
+      className="size-16 rounded-full bg-linear-to-r from-green-600 via-emerald-500 to-teal-600 hover:opacity-90 shadow-md"
     >
+      <Bot className="size-8 text-white" />
+      <span className="sr-only">Open AI Assistant</span>
+    </Button>
+  );
+}
+
+// Header button (shown when sidebar is open)
+function HeaderSidebarToggle() {
+  const { close, isOpen } = useRightSidebar();
+
+  if (!isOpen) return null;
+
+  return (
+    <Button variant="ghost" size="icon" onClick={close} className="size-7">
       <PanelRight className="h-4 w-4" />
-      <span className="sr-only">{isOpen ? "Close" : "Open"} Sidebar</span>
+      <span className="sr-only">Close Sidebar</span>
     </Button>
   );
 }
@@ -284,11 +296,14 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
               </Breadcrumb>
             </div>
             <div className="flex items-center gap-2 px-4">
-              <RightSidebarToggle />
+              <HeaderSidebarToggle />
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-16 pt-0 overflow-auto">
             {children}
+          </div>
+          <div className="absolute bottom-6 right-6">
+            <FloatingAIButton />
           </div>
         </SidebarInset>
 
