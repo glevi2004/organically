@@ -108,8 +108,6 @@ function SortableCalendarPostCard({
     transition,
   };
 
-  const platformLogo = getPlatformIcon(post.platform);
-
   return (
     <div
       ref={setNodeRef}
@@ -127,15 +125,21 @@ function SortableCalendarPostCard({
           className="flex-1 flex items-center gap-1 min-w-0"
           onClick={onClick}
         >
-          {platformLogo && (
-            <Image
-              src={platformLogo}
-              alt={post.platform}
-              width={12}
-              height={12}
-              className="shrink-0"
-            />
-          )}
+          <div className="flex items-center gap-0.5 shrink-0">
+            {post.platforms.map((platformId) => {
+              const logo = getPlatformIcon(platformId);
+              return logo ? (
+                <Image
+                  key={platformId}
+                  src={logo}
+                  alt={platformId}
+                  width={12}
+                  height={12}
+                  className="shrink-0"
+                />
+              ) : null;
+            })}
+          </div>
           <span className="truncate font-medium">{post.title}</span>
         </div>
 
@@ -155,8 +159,6 @@ function SortableCalendarPostCard({
 
 // Post Card for Drag Overlay
 function CalendarPostCardOverlay({ post }: { post: Post }) {
-  const platformLogo = getPlatformIcon(post.platform);
-
   return (
     <div
       className={cn(
@@ -165,15 +167,21 @@ function CalendarPostCardOverlay({ post }: { post: Post }) {
       )}
     >
       <div className="flex items-center gap-1">
-        {platformLogo && (
-          <Image
-            src={platformLogo}
-            alt={post.platform}
-            width={12}
-            height={12}
-            className="shrink-0"
-          />
-        )}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {post.platforms.map((platformId) => {
+            const logo = getPlatformIcon(platformId);
+            return logo ? (
+              <Image
+                key={platformId}
+                src={logo}
+                alt={platformId}
+                width={12}
+                height={12}
+                className="shrink-0"
+              />
+            ) : null;
+          })}
+        </div>
         <span className="truncate font-medium">{post.title}</span>
         <GripVertical className="w-3 h-3 shrink-0 opacity-70" />
       </div>
