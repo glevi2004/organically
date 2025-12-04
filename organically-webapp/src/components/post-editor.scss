@@ -1,0 +1,114 @@
+.post-editor-wrapper {
+  border: 1px solid var(--tt-border-color, hsl(var(--border)));
+  border-radius: 1rem;
+  background: var(--tt-bg-color, hsl(var(--background)));
+  overflow: hidden;
+}
+
+.post-editor-content {
+  padding: 1rem;
+  min-height: 150px;
+}
+
+.post-editor-textarea {
+  min-height: 120px;
+  outline: none;
+  font-size: 1.25rem;
+  line-height: 1.5;
+
+  p {
+    margin: 0;
+  }
+
+  // Placeholder
+  &.ProseMirror p.is-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: hsl(var(--muted-foreground) / 0.5);
+    pointer-events: none;
+    height: 0;
+  }
+
+  // Links
+  a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  // Lists
+  ul,
+  ol {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+  }
+
+  li {
+    margin: 0.25rem 0;
+  }
+
+  // Images
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.75rem;
+    margin: 0.5rem 0;
+  }
+}
+
+.post-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--tt-border-color, hsl(var(--border)));
+  gap: 0.5rem;
+}
+
+.post-editor-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+
+  // Style the tiptap buttons to look like Twitter
+  .tiptap-button {
+    border-radius: 9999px;
+    width: 36px;
+    height: 36px;
+    
+    &:hover {
+      background: hsl(var(--primary) / 0.1);
+    }
+
+    &[data-active="true"] {
+      background: hsl(var(--primary) / 0.15);
+      color: hsl(var(--primary));
+    }
+  }
+
+  // Image button - blue like Twitter
+  .tiptap-button:first-child {
+    color: hsl(var(--primary));
+  }
+}
+
+.post-editor-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.post-editor-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--tt-border-color, hsl(var(--border)));
+  margin: 0 0.25rem;
+}
+
+.post-editor-char-count {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
