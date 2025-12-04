@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRightSidebar } from "@/contexts/RightSidebarContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,13 +22,11 @@ import { toast } from "sonner";
 import {
   createPost,
   getPostsByProfile,
-  deletePost,
   reorderPosts,
 } from "@/services/postService";
 import { Post, PostStatus } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/profile-constants";
-import { PostEditor } from "@/components/navigation/right-sidebar";
 
 // DnD Kit imports
 import {
@@ -263,14 +261,9 @@ function KanbanColumn({
 export default function PostsPage() {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const {
-    openPost,
-    close,
-    setPostContent: updateSidebarPost,
-  } = useRightSidebar();
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -302,10 +295,13 @@ export default function PostsPage() {
 
   // Group posts by status
   const postsByStatus = useMemo(() => {
-    return statusOrder.reduce((acc, status) => {
-      acc[status] = posts.filter((p) => p.status === status);
-      return acc;
-    }, {} as Record<PostStatus, Post[]>);
+    return statusOrder.reduce(
+      (acc, status) => {
+        acc[status] = posts.filter((p) => p.status === status);
+        return acc;
+      },
+      {} as Record<PostStatus, Post[]>
+    );
   }, [posts]);
 
   // Get the active post being dragged
@@ -336,97 +332,9 @@ export default function PostsPage() {
     }
   };
 
-  const handleStatusChange = useCallback(
-    async (postId: string, newStatus: PostStatus) => {
-      try {
-        // Get max order for target status
-        const targetPosts = posts.filter((p) => p.status === newStatus);
-        const maxOrder = Math.max(...targetPosts.map((p) => p.order), -1);
-
-        await reorderPosts([
-          { id: postId, order: maxOrder + 1, status: newStatus },
-        ]);
-
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === postId
-              ? { ...p, status: newStatus, order: maxOrder + 1 }
-              : p
-          )
-        );
-        toast.success("Status updated!");
-      } catch (error) {
-        console.error("Error updating status:", error);
-        toast.error("Failed to update status");
-      }
-    },
-    [posts]
-  );
-
-  const handleSavePost = useCallback((updatedPost: Post) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
-    );
-  }, []);
-
-  const handleDeletePost = useCallback(
-    async (postId: string) => {
-      try {
-        await deletePost(postId);
-        setPosts((prev) => prev.filter((p) => p.id !== postId));
-        close();
-        toast.success("Post deleted");
-      } catch (error) {
-        console.error("Error deleting post:", error);
-        toast.error("Failed to delete post");
-      }
-    },
-    [close]
-  );
-
-  const handleCloseEditor = useCallback(() => {
-    setSelectedPost(null);
-    close();
-  }, [close]);
-
-  // Update sidebar content when selected post changes
-  useEffect(() => {
-    if (selectedPost) {
-      // Find the latest version of the post from state
-      const currentPost = posts.find((p) => p.id === selectedPost.id);
-      if (currentPost) {
-        updateSidebarPost(
-          <PostEditor
-            post={currentPost}
-            onSave={handleSavePost}
-            onDelete={handleDeletePost}
-            onStatusChange={handleStatusChange}
-            onClose={handleCloseEditor}
-          />
-        );
-      }
-    }
-  }, [
-    selectedPost,
-    posts,
-    updateSidebarPost,
-    handleSavePost,
-    handleDeletePost,
-    handleStatusChange,
-    handleCloseEditor,
-  ]);
-
+  // Navigate to post edit page
   const handleOpenPost = (post: Post) => {
-    setSelectedPost(post);
-    openPost(
-      <PostEditor
-        post={post}
-        onSave={handleSavePost}
-        onDelete={handleDeletePost}
-        onStatusChange={handleStatusChange}
-        onClose={handleCloseEditor}
-      />
-    );
+    router.push(`/profile/${activeProfile?.id}/posts/${post.id}`);
   };
 
   const handleAddPost = async () => {
