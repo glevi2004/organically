@@ -22,6 +22,11 @@ const POSTS_COLLECTION = "posts";
  */
 export async function createPost(input: CreatePostInput): Promise<Post> {
   try {
+    // Validate platforms array
+    if (!input.platforms || input.platforms.length === 0) {
+      throw new Error("At least one platform must be selected");
+    }
+
     const postId = doc(collection(db, POSTS_COLLECTION)).id;
     const now = new Date();
 
