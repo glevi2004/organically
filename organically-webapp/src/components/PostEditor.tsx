@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
 import { Markdown } from "tiptap-markdown"
+import { Loader2, Check } from "lucide-react"
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit"
@@ -27,14 +28,16 @@ import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
 // --- Styles ---
 import "./post-editor.scss"
 
+export type SaveStatus = "idle" | "saving" | "saved"
+
 interface PostEditorProps {
   content: string
   onChange: (content: string) => void
-  onBlur?: () => void
+  saveStatus?: SaveStatus
   placeholder?: string
 }
 
-export function PostEditor({ content, onChange, onBlur, placeholder }: PostEditorProps) {
+export function PostEditor({ content, onChange, saveStatus = "idle", placeholder }: PostEditorProps) {
   const initialContentRef = useRef(content)
 
   const editor = useEditor({
@@ -73,9 +76,6 @@ export function PostEditor({ content, onChange, onBlur, placeholder }: PostEdito
       const markdown = editor.storage.markdown.getMarkdown()
       onChange(markdown)
     },
-    onBlur: () => {
-      onBlur?.()
-    },
   })
 
   // Update content when it changes externally
@@ -88,8 +88,6 @@ export function PostEditor({ content, onChange, onBlur, placeholder }: PostEdito
       }
     }
   }, [content, editor])
-
-  const characterCount = editor?.storage.markdown?.getMarkdown()?.length || 0
 
   return (
     <div className="post-editor-wrapper">
@@ -117,9 +115,18 @@ export function PostEditor({ content, onChange, onBlur, placeholder }: PostEdito
           </div>
 
           <div className="post-editor-toolbar-right">
-            <span className="post-editor-char-count">
-              {characterCount} characters
-            </span>
+            {saveStatus === "saving" && (
+              <span className="post-editor-status post-editor-status-saving">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Saving...</span>
+              </span>
+            )}
+            {saveStatus === "saved" && (
+              <span className="post-editor-status post-editor-status-saved">
+                <Check className="h-4 w-4" />
+                <span>Saved</span>
+              </span>
+            )}
           </div>
         </div>
       </EditorContext.Provider>
