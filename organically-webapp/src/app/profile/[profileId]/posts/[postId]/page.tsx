@@ -14,13 +14,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Loader2, CircleDot, Globe, Calendar, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { getPost, updatePost, reorderPosts } from "@/services/postService";
-import { Post, PostStatus } from "@/types/post";
+import { Post, PostStatus, PostType, PostPlatform } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/profile-constants";
+import { POST_TYPES, getAllowedPlatformsForType } from "@/lib/post-constants";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 // Status configuration with colors and grouping
 const statusConfig: Record<
@@ -239,8 +244,6 @@ export default function PostEditPage() {
     );
   }
 
-  const platformLogo = getPlatformIcon(editedPost.platform);
-
   return (
     <div className="mt-6 w-full space-y-2">
       {/* Title - Large editable heading */}
@@ -310,22 +313,137 @@ export default function PostEditPage() {
           </DropdownMenu>
         </div>
 
-        {/* Platform */}
+        {/* Post Type */}
+        <div className="flex items-center gap-4">
+          <span className="text-muted-foreground w-36 flex items-center gap-2">
+            <CircleDot className="h-4 w-4" />
+            Type
+          </span>
+          <select
+            value={editedPost.type || ""}
+            onChange={(e) => {
+              const newType = e.target.value as PostType | "";
+              const updatedPost = {
+                ...editedPost,
+                type: newType || undefined,
+              };
+              // If type changes and restricts platforms, filter platforms
+              if (newType) {
+                const newAllowedPlatforms = getAllowedPlatformsForType(
+                  newType as PostType
+                );
+                updatedPost.platforms = editedPost.platforms.filter((p) =>
+                  newAllowedPlatforms.includes(p)
+                );
+                // Ensure at least one platform if current platforms are filtered out
+                if (
+                  updatedPost.platforms.length === 0 &&
+                  newAllowedPlatforms.length > 0
+                ) {
+                  updatedPost.platforms = [newAllowedPlatforms[0]];
+                }
+              }
+              setEditedPost(updatedPost);
+            }}
+            onBlur={handleFieldSave}
+            className="px-3 py-1.5 rounded-md text-base border border-border bg-background hover:bg-muted"
+          >
+            <option value="">None</option>
+            {POST_TYPES.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.label} - {type.description}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Platforms */}
         <div className="flex items-center gap-4">
           <span className="text-muted-foreground w-36 flex items-center gap-2">
             <Globe className="h-4 w-4" />
-            Platform
+            Platforms
           </span>
-          <div className="flex items-center gap-2">
-            {platformLogo && (
-              <Image
-                src={platformLogo}
-                alt={editedPost.platform}
-                width={20}
-                height={20}
-              />
-            )}
-            <span className="capitalize">{editedPost.platform}</span>
+          <div className="flex-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start min-h-[40px] h-auto"
+                >
+                  {editedPost.platforms.length === 0 ? (
+                    <span className="text-muted-foreground">
+                      Select platforms...
+                    </span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {editedPost.platforms.map((platformId) => {
+                        const platform = PLATFORMS.find(
+                          (p) => p.id === platformId
+                        );
+                        return (
+                          <Badge
+                            key={platformId}
+                            variant="secondary"
+                            className="flex items-center gap-1"
+                          >
+                            {platform?.logo && (
+                              <Image
+                                src={platform.logo}
+                                alt={platform.name}
+                                width={12}
+                                height={12}
+                              />
+                            )}
+                            {platform?.name}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full">
+                {PLATFORMS.filter((p) =>
+                  getAllowedPlatformsForType(editedPost.type).includes(
+                    p.id as PostPlatform
+                  )
+                ).map((platform) => (
+                  <DropdownMenuCheckboxItem
+                    key={platform.id}
+                    checked={editedPost.platforms.includes(
+                      platform.id as PostPlatform
+                    )}
+                    onCheckedChange={(checked) => {
+                      let newPlatforms: PostPlatform[];
+                      if (checked) {
+                        newPlatforms = [
+                          ...editedPost.platforms,
+                          platform.id as PostPlatform,
+                        ];
+                      } else {
+                        newPlatforms = editedPost.platforms.filter(
+                          (p) => p !== platform.id
+                        );
+                      }
+                      setEditedPost({ ...editedPost, platforms: newPlatforms });
+                    }}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <div className="flex items-center gap-2">
+                      {platform.logo && (
+                        <Image
+                          src={platform.logo}
+                          alt={platform.name}
+                          width={16}
+                          height={16}
+                        />
+                      )}
+                      {platform.name}
+                    </div>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
