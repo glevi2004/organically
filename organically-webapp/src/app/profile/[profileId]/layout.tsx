@@ -9,6 +9,10 @@ import {
   RightSidebarProvider,
   useRightSidebar,
 } from "@/contexts/RightSidebarContext";
+import {
+  BreadcrumbProvider,
+  useBreadcrumb,
+} from "@/contexts/BreadcrumbContext";
 import { Chatbot } from "@/components/navigation/right-sidebar";
 import {
   SidebarProvider,
@@ -78,7 +82,7 @@ function SidebarCallbackRegistrar() {
 }
 
 function RightSidebar() {
-  const { isOpen, mode, postContent } = useRightSidebar();
+  const { isOpen } = useRightSidebar();
   const [sidebarWidth, setSidebarWidth] = useState(RIGHT_SIDEBAR_DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -160,9 +164,9 @@ function RightSidebar() {
           )}
         />
         <div className="bg-sidebar flex h-full w-full flex-col">
-          {/* Right sidebar content based on mode */}
+          {/* Right sidebar content - AI Chatbot */}
           <div className="flex-1 overflow-auto">
-            {mode === "ai" ? <Chatbot /> : postContent}
+            <Chatbot />
           </div>
         </div>
       </div>
@@ -182,6 +186,7 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
     setActiveProfile,
   } = useProfile();
   const { close: closeRightSidebar } = useRightSidebar();
+  const { customTitle } = useBreadcrumb();
   const profileId = params.profileId as string;
 
   // Get current page from URL for breadcrumb
@@ -195,7 +200,10 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
       .join(" ");
 
   const pageTitle = formatTitle(pageSegments[0] || "home");
-  const nestedPageTitle = pageSegments[1] ? formatTitle(pageSegments[1]) : null;
+  // Use custom title if available, otherwise format the URL segment
+  const nestedPageTitle = pageSegments[1]
+    ? customTitle || formatTitle(pageSegments[1])
+    : null;
 
   useEffect(() => {
     async function validateProfile() {
@@ -297,9 +305,11 @@ export default function ProfileLayout({
 }) {
   return (
     <ProtectedRoute>
-      <RightSidebarProvider>
-        <ProfileLayoutContent>{children}</ProfileLayoutContent>
-      </RightSidebarProvider>
+      <BreadcrumbProvider>
+        <RightSidebarProvider>
+          <ProfileLayoutContent>{children}</ProfileLayoutContent>
+        </RightSidebarProvider>
+      </BreadcrumbProvider>
     </ProtectedRoute>
   );
 }
