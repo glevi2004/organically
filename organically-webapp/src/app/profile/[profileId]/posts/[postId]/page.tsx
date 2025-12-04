@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2 } from "lucide-react";
+import { Loader2, CircleDot, Globe, Calendar, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { getPost, updatePost, reorderPosts } from "@/services/postService";
 import { Post, PostStatus } from "@/types/post";
@@ -260,7 +260,10 @@ export default function PostEditPage() {
       <div className="space-y-3 py-4">
         {/* Status */}
         <div className="flex items-center gap-4">
-          <span className="text-muted-foreground w-36">Status</span>
+          <span className="text-muted-foreground w-36 flex items-center gap-2">
+            <CircleDot className="h-4 w-4" />
+            Status
+          </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -309,7 +312,10 @@ export default function PostEditPage() {
 
         {/* Platform */}
         <div className="flex items-center gap-4">
-          <span className="text-muted-foreground w-36">Platform</span>
+          <span className="text-muted-foreground w-36 flex items-center gap-2">
+            <Globe className="h-4 w-4" />
+            Platform
+          </span>
           <div className="flex items-center gap-2">
             {platformLogo && (
               <Image
@@ -325,7 +331,10 @@ export default function PostEditPage() {
 
         {/* Scheduled Date */}
         <div className="flex items-center gap-4">
-          <span className="text-muted-foreground w-36">Scheduled</span>
+          <span className="text-muted-foreground w-36 flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Scheduled
+          </span>
           <Input
             type="datetime-local"
             value={
@@ -348,7 +357,10 @@ export default function PostEditPage() {
 
         {/* Created Date */}
         <div className="flex items-center gap-4">
-          <span className="text-muted-foreground w-36">Created</span>
+          <span className="text-muted-foreground w-36 flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Created
+          </span>
           <span className="text-muted-foreground">
             {new Date(editedPost.createdAt).toLocaleDateString("en-US", {
               month: "short",
