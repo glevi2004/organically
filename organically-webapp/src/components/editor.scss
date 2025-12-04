@@ -1,0 +1,78 @@
+.post-editor-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--tt-border-color, hsl(var(--border)));
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--tt-bg-color, hsl(var(--background)));
+}
+
+.post-editor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--tt-border-color, hsl(var(--border)));
+  background: var(--tt-bg-color, hsl(var(--background)));
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+
+.post-editor-content {
+  width: 100%;
+  min-height: 300px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.post-editor-content .tiptap.ProseMirror.post-editor {
+  padding: 1rem;
+  min-height: 300px;
+  outline: none;
+  font-family: inherit;
+}
+
+.post-editor-content .tiptap.ProseMirror.post-editor:focus {
+  outline: none;
+}
+
+.post-editor-content
+  .tiptap.ProseMirror.post-editor
+  p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--tt-gray-light-400);
+  pointer-events: none;
+  height: 0;
+}
+
+.dark
+  .post-editor-content
+  .tiptap.ProseMirror.post-editor
+  p.is-editor-empty:first-child::before {
+  color: var(--tt-gray-dark-400);
+}
+
+/* Scrollbar styling */
+.post-editor-content::-webkit-scrollbar {
+  width: 0.25rem;
+}
+
+.post-editor-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tt-scrollbar-color, hsl(var(--muted-foreground) / 0.3))
+    transparent;
+}
+
+.post-editor-content::-webkit-scrollbar-thumb {
+  background-color: var(
+    --tt-scrollbar-color,
+    hsl(var(--muted-foreground) / 0.3)
+  );
+  border-radius: 9999px;
+}
+
+.post-editor-content::-webkit-scrollbar-track {
+  background: transparent;
+}
