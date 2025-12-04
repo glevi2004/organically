@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { PostEditor } from "@/components/PostEditor";
+import { PostEditor, SaveStatus } from "@/components/PostEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,7 +75,12 @@ export default function PostEditPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [editedPost, setEditedPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
+  // Refs for debounced save
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedRef = useRef<string>("");
 
   // Load the post
   useEffect(() => {
@@ -95,6 +100,12 @@ export default function PostEditPage() {
         setPost(fetchedPost);
         setEditedPost(fetchedPost);
         setCustomTitle(fetchedPost.title);
+        // Initialize lastSaved ref to prevent unnecessary first save
+        lastSavedRef.current = JSON.stringify({
+          title: fetchedPost.title,
+          content: fetchedPost.content,
+          scheduledDate: fetchedPost.scheduledDate?.getTime(),
+        });
       } else {
         toast.error("Post not found");
         router.back();
@@ -108,35 +119,94 @@ export default function PostEditPage() {
     }
   };
 
-  // Check if post has changes
-  const hasChanges = () => {
-    if (!post || !editedPost) return false;
-    return (
-      post.title !== editedPost.title ||
-      post.content !== editedPost.content ||
-      post.scheduledDate?.getTime() !== editedPost.scheduledDate?.getTime()
-    );
-  };
+  // Debounced save for content changes
+  const debouncedSave = useCallback(async (postToSave: Post) => {
+    // Clear any existing saved timeout
+    if (savedTimeoutRef.current) {
+      clearTimeout(savedTimeoutRef.current);
+    }
 
-  const handleSave = async () => {
-    if (!editedPost || !hasChanges()) return;
+    // Create a snapshot to compare
+    const snapshot = JSON.stringify({
+      title: postToSave.title,
+      content: postToSave.content,
+      scheduledDate: postToSave.scheduledDate?.getTime(),
+    });
+
+    // Skip if nothing changed since last save
+    if (snapshot === lastSavedRef.current) {
+      return;
+    }
 
     try {
-      setSaving(true);
-      await updatePost(editedPost.id, {
-        title: editedPost.title,
-        content: editedPost.content,
-        scheduledDate: editedPost.scheduledDate,
+      setSaveStatus("saving");
+      await updatePost(postToSave.id, {
+        title: postToSave.title,
+        content: postToSave.content,
+        scheduledDate: postToSave.scheduledDate,
       });
-      setPost(editedPost);
-      toast.success("Post saved!");
+      lastSavedRef.current = snapshot;
+      setPost(postToSave);
+      setSaveStatus("saved");
+
+      // Reset to idle after 2 seconds
+      savedTimeoutRef.current = setTimeout(() => {
+        setSaveStatus("idle");
+      }, 2000);
     } catch (error) {
       console.error("Error saving post:", error);
       toast.error("Failed to save post");
-    } finally {
-      setSaving(false);
+      setSaveStatus("idle");
     }
+  }, []);
+
+  // Handle content change with debounce
+  const handleContentChange = useCallback(
+    (content: string) => {
+      if (!editedPost) return;
+
+      const updatedPost = { ...editedPost, content };
+      setEditedPost(updatedPost);
+
+      // Clear existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Set new debounced save (1.5 second delay)
+      saveTimeoutRef.current = setTimeout(() => {
+        debouncedSave(updatedPost);
+      }, 1500);
+    },
+    [editedPost, debouncedSave]
+  );
+
+  // Handle title/date blur save (immediate)
+  const handleFieldSave = async () => {
+    if (!editedPost || !post) return;
+
+    // Only save if title or scheduledDate changed
+    const titleChanged = post.title !== editedPost.title;
+    const dateChanged =
+      post.scheduledDate?.getTime() !== editedPost.scheduledDate?.getTime();
+
+    if (!titleChanged && !dateChanged) return;
+
+    // Clear any pending content save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    await debouncedSave(editedPost);
   };
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+    };
+  }, []);
 
   const handleStatusChange = async (newStatus: PostStatus) => {
     if (!editedPost) return;
@@ -181,7 +251,7 @@ export default function PostEditPage() {
           setEditedPost({ ...editedPost, title: e.target.value });
           setCustomTitle(e.target.value);
         }}
-        onBlur={handleSave}
+        onBlur={handleFieldSave}
         placeholder="Untitled"
         className="w-full text-3xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/30"
       />
@@ -271,7 +341,7 @@ export default function PostEditPage() {
                   : undefined,
               });
             }}
-            onBlur={handleSave}
+            onBlur={handleFieldSave}
             className="w-auto border-none bg-transparent hover:bg-muted px-2 h-9"
           />
         </div>
@@ -294,8 +364,8 @@ export default function PostEditPage() {
       {/* Content Editor */}
       <PostEditor
         content={editedPost.content}
-        onChange={(content) => setEditedPost({ ...editedPost, content })}
-        onBlur={handleSave}
+        onChange={handleContentChange}
+        saveStatus={saveStatus}
         placeholder="What's happening?"
       />
     </div>
