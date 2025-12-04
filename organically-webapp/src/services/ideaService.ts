@@ -10,6 +10,7 @@ import {
   deleteDoc,
   updateDoc,
   Timestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
 import { Idea, CreateIdeaInput } from "@/types/idea";
@@ -24,10 +25,20 @@ export async function createIdea(input: CreateIdeaInput): Promise<Idea> {
     const ideaId = doc(collection(db, IDEAS_COLLECTION)).id;
     const now = new Date();
 
+    // Get existing ideas to determine order
+    const existingIdeas = await getIdeasByProfile(input.profileId);
+    const maxOrder =
+      existingIdeas.length > 0
+        ? Math.max(...existingIdeas.map((i) => i.order))
+        : -1;
+
     const idea: Idea = {
       id: ideaId,
-      ...input,
-      convertedToPost: false,
+      profileId: input.profileId,
+      userId: input.userId,
+      title: input.title,
+      content: input.content || "",
+      order: maxOrder + 1,
       createdAt: now,
       updatedAt: now,
     };
@@ -60,7 +71,11 @@ export async function getIdea(ideaId: string): Promise<Idea | null> {
     const data = docSnap.data();
     return {
       id: docSnap.id,
-      ...data,
+      profileId: data.profileId,
+      userId: data.userId,
+      title: data.title,
+      content: data.content || "",
+      order: data.order ?? 0,
       createdAt: data.createdAt.toDate(),
       updatedAt: data.updatedAt.toDate(),
     } as Idea;
@@ -78,7 +93,7 @@ export async function getIdeasByProfile(profileId: string): Promise<Idea[]> {
     const q = query(
       collection(db, IDEAS_COLLECTION),
       where("profileId", "==", profileId),
-      orderBy("createdAt", "desc")
+      orderBy("order", "asc")
     );
 
     const querySnapshot = await getDocs(q);
@@ -88,7 +103,11 @@ export async function getIdeasByProfile(profileId: string): Promise<Idea[]> {
       const data = doc.data();
       ideas.push({
         id: doc.id,
-        ...data,
+        profileId: data.profileId,
+        userId: data.userId,
+        title: data.title,
+        content: data.content || "",
+        order: data.order ?? 0,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate(),
       } as Idea);
@@ -111,8 +130,16 @@ export async function updateIdea(
   try {
     const docRef = doc(db, IDEAS_COLLECTION, ideaId);
 
+    // Filter out undefined values
+    const cleanUpdates: Record<string, unknown> = {};
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value !== undefined) {
+        cleanUpdates[key] = value;
+      }
+    });
+
     await updateDoc(docRef, {
-      ...updates,
+      ...cleanUpdates,
       updatedAt: Timestamp.fromDate(new Date()),
     });
   } catch (error) {
@@ -133,3 +160,26 @@ export async function deleteIdea(ideaId: string): Promise<void> {
   }
 }
 
+/**
+ * Reorder ideas (batch update order field)
+ */
+export async function reorderIdeas(
+  updates: Array<{ id: string; order: number }>
+): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+
+    updates.forEach(({ id, order }) => {
+      const docRef = doc(db, IDEAS_COLLECTION, id);
+      batch.update(docRef, {
+        order,
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error("Error reordering ideas:", error);
+    throw error;
+  }
+}
