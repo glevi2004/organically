@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRightSidebar } from "@/contexts/RightSidebarContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,13 +28,11 @@ import {
   createPost,
   getPostsByDateRange,
   updatePost,
-  deletePost,
   reorderPosts,
 } from "@/services/postService";
 import { Post, PostStatus } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/profile-constants";
-import { PostEditor } from "@/components/navigation/right-sidebar";
 
 // DnD Kit imports
 import {
@@ -254,17 +252,12 @@ function CalendarDay({
 export default function CalendarPage() {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const {
-    openPost,
-    close,
-    setPostContent: updateSidebarPost,
-  } = useRightSidebar();
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -415,96 +408,9 @@ export default function CalendarPage() {
     return posts.find((p) => p.id === activeId) || null;
   }, [activeId, posts]);
 
-  // Post editor handlers
-  const handleStatusChange = useCallback(
-    async (postId: string, newStatus: PostStatus) => {
-      try {
-        const targetPosts = posts.filter((p) => p.status === newStatus);
-        const maxOrder = Math.max(...targetPosts.map((p) => p.order ?? 0), -1);
-
-        await reorderPosts([
-          { id: postId, order: maxOrder + 1, status: newStatus },
-        ]);
-
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === postId
-              ? { ...p, status: newStatus, order: maxOrder + 1 }
-              : p
-          )
-        );
-        toast.success("Status updated!");
-      } catch (error) {
-        console.error("Error updating status:", error);
-        toast.error("Failed to update status");
-      }
-    },
-    [posts]
-  );
-
-  const handleSavePost = useCallback((updatedPost: Post) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
-    );
-  }, []);
-
-  const handleDeletePost = useCallback(
-    async (postId: string) => {
-      try {
-        await deletePost(postId);
-        setPosts((prev) => prev.filter((p) => p.id !== postId));
-        close();
-        toast.success("Post deleted");
-      } catch (error) {
-        console.error("Error deleting post:", error);
-        toast.error("Failed to delete post");
-      }
-    },
-    [close]
-  );
-
-  const handleCloseEditor = useCallback(() => {
-    setSelectedPost(null);
-    close();
-  }, [close]);
-
-  // Update sidebar content when selected post changes
-  useEffect(() => {
-    if (selectedPost) {
-      const currentPost = posts.find((p) => p.id === selectedPost.id);
-      if (currentPost) {
-        updateSidebarPost(
-          <PostEditor
-            post={currentPost}
-            onSave={handleSavePost}
-            onDelete={handleDeletePost}
-            onStatusChange={handleStatusChange}
-            onClose={handleCloseEditor}
-          />
-        );
-      }
-    }
-  }, [
-    selectedPost,
-    posts,
-    updateSidebarPost,
-    handleSavePost,
-    handleDeletePost,
-    handleStatusChange,
-    handleCloseEditor,
-  ]);
-
+  // Navigate to post edit page
   const handleOpenPost = (post: Post) => {
-    setSelectedPost(post);
-    openPost(
-      <PostEditor
-        post={post}
-        onSave={handleSavePost}
-        onDelete={handleDeletePost}
-        onStatusChange={handleStatusChange}
-        onClose={handleCloseEditor}
-      />
-    );
+    router.push(`/profile/${activeProfile?.id}/posts/${post.id}`);
   };
 
   // DnD Handlers
