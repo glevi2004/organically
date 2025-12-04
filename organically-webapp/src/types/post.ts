@@ -1,5 +1,7 @@
 export type PostStatus = "idea" | "draft" | "ready" | "posted";
 
+export type PostType = "short-video" | "long-video" | "thread";
+
 export type PostPlatform =
   | "instagram"
   | "tiktok"
@@ -13,7 +15,8 @@ export interface Post {
   userId: string;
   title: string;
   content: string; // Markdown content
-  platform: PostPlatform;
+  platforms: PostPlatform[]; // Multiple platforms (required, min 1)
+  type?: PostType; // Optional post type
   status: PostStatus;
   order: number; // Position within the status column
   scheduledDate?: Date;
@@ -29,7 +32,8 @@ export interface CreatePostInput {
   userId: string;
   title: string;
   content: string; // Markdown content
-  platform: PostPlatform;
+  platforms: PostPlatform[]; // Multiple platforms (required, min 1)
+  type?: PostType; // Optional post type
   status?: PostStatus;
   scheduledDate?: Date;
   hooks?: string[];
