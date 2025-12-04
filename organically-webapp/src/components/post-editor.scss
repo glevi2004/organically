@@ -76,7 +76,7 @@
     border-radius: 9999px;
     width: 36px;
     height: 36px;
-    
+
     &:hover {
       background: hsl(var(--primary) / 0.1);
     }
@@ -121,4 +121,3 @@
 .post-editor-status-saved {
   color: hsl(142 76% 36%); // Green color
 }
-
