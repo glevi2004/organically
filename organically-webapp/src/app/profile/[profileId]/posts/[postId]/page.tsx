@@ -6,7 +6,7 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Editor } from "@/components/Editor";
+import { PostEditor } from "@/components/PostEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -108,8 +108,18 @@ export default function PostEditPage() {
     }
   };
 
+  // Check if post has changes
+  const hasChanges = () => {
+    if (!post || !editedPost) return false;
+    return (
+      post.title !== editedPost.title ||
+      post.content !== editedPost.content ||
+      post.scheduledDate?.getTime() !== editedPost.scheduledDate?.getTime()
+    );
+  };
+
   const handleSave = async () => {
-    if (!editedPost) return;
+    if (!editedPost || !hasChanges()) return;
 
     try {
       setSaving(true);
@@ -162,7 +172,7 @@ export default function PostEditPage() {
   const platformLogo = getPlatformIcon(editedPost.platform);
 
   return (
-    <div className="w-full space-y-2">
+    <div className="mt-6 w-full space-y-2">
       {/* Title - Large editable heading */}
       <input
         type="text"
@@ -173,7 +183,7 @@ export default function PostEditPage() {
         }}
         onBlur={handleSave}
         placeholder="Untitled"
-        className="w-full text-5xl font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/30"
+        className="w-full text-3xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/30"
       />
 
       {/* Properties */}
@@ -184,10 +194,16 @@ export default function PostEditPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-base ${statusConfig[editedPost.status].bgColor} ${statusConfig[editedPost.status].textColor} hover:opacity-80 transition-opacity cursor-pointer`}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-base ${
+                  statusConfig[editedPost.status].bgColor
+                } ${
+                  statusConfig[editedPost.status].textColor
+                } hover:opacity-80 transition-opacity cursor-pointer`}
               >
                 <span
-                  className={`w-2.5 h-2.5 rounded-full ${statusConfig[editedPost.status].dotColor}`}
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    statusConfig[editedPost.status].dotColor
+                  }`}
                 />
                 {statusConfig[editedPost.status].label}
               </button>
@@ -276,13 +292,12 @@ export default function PostEditPage() {
       <Separator className="my-6" />
 
       {/* Content Editor */}
-      <Editor
+      <PostEditor
         content={editedPost.content}
         onChange={(content) => setEditedPost({ ...editedPost, content })}
         onBlur={handleSave}
-        placeholder="Start writing your post content..."
+        placeholder="What's happening?"
       />
     </div>
   );
 }
-
