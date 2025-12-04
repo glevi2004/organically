@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { PostEditor } from "@/components/PostEditor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -17,16 +17,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Loader2, Calendar, GripVertical } from "lucide-react";
+import {
+  Plus,
+  Loader2,
+  Calendar,
+  GripVertical,
+  CircleDot,
+  Globe,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   createPost,
   getPostsByProfile,
   reorderPosts,
 } from "@/services/postService";
-import { Post, PostStatus } from "@/types/post";
+import { Post, PostStatus, PostType, PostPlatform } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/profile-constants";
+import { POST_TYPES, getAllowedPlatformsForType } from "@/lib/post-constants";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // DnD Kit imports
 import {
@@ -50,6 +65,7 @@ import {
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 const statusOrder: PostStatus[] = ["idea", "draft", "ready", "posted"];
 
@@ -98,8 +114,6 @@ function SortablePostCard({
     transition,
   };
 
-  const platformLogo = getPlatformIcon(post.platform);
-
   return (
     <div
       ref={setNodeRef}
@@ -117,15 +131,21 @@ function SortablePostCard({
           onClick={onClick}
         >
           <div className="flex items-start gap-2 mb-2">
-            {platformLogo && (
-              <Image
-                src={platformLogo}
-                alt={post.platform}
-                width={16}
-                height={16}
-                className="shrink-0 mt-0.5"
-              />
-            )}
+            <div className="flex items-center gap-1 shrink-0 mt-0.5">
+              {post.platforms.map((platformId) => {
+                const logo = getPlatformIcon(platformId);
+                return logo ? (
+                  <Image
+                    key={platformId}
+                    src={logo}
+                    alt={platformId}
+                    width={16}
+                    height={16}
+                    className="shrink-0"
+                  />
+                ) : null;
+              })}
+            </div>
             <p className="text-sm font-medium line-clamp-2 flex-1">
               {post.title}
             </p>
@@ -154,22 +174,26 @@ function SortablePostCard({
 
 // Post Card for Drag Overlay (non-sortable version)
 function PostCardOverlay({ post }: { post: Post }) {
-  const platformLogo = getPlatformIcon(post.platform);
-
   return (
     <div className="p-3 border rounded-lg bg-background shadow-lg ring-2 ring-primary">
       <div className="flex items-start gap-2">
         <div className="flex-1">
           <div className="flex items-start gap-2 mb-2">
-            {platformLogo && (
-              <Image
-                src={platformLogo}
-                alt={post.platform}
-                width={16}
-                height={16}
-                className="shrink-0 mt-0.5"
-              />
-            )}
+            <div className="flex items-center gap-1 shrink-0 mt-0.5">
+              {post.platforms.map((platformId) => {
+                const logo = getPlatformIcon(platformId);
+                return logo ? (
+                  <Image
+                    key={platformId}
+                    src={logo}
+                    alt={platformId}
+                    width={16}
+                    height={16}
+                    className="shrink-0"
+                  />
+                ) : null;
+              })}
+            </div>
             <p className="text-sm font-medium line-clamp-2 flex-1">
               {post.title}
             </p>
@@ -274,7 +298,8 @@ export default function PostsPage() {
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
   const [postContent, setPostContent] = useState("");
-  const [platform, setPlatform] = useState("instagram");
+  const [postType, setPostType] = useState<PostType | undefined>(undefined);
+  const [platforms, setPlatforms] = useState<PostPlatform[]>([]);
   const [scheduledDate, setScheduledDate] = useState(() => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -295,13 +320,10 @@ export default function PostsPage() {
 
   // Group posts by status
   const postsByStatus = useMemo(() => {
-    return statusOrder.reduce(
-      (acc, status) => {
-        acc[status] = posts.filter((p) => p.status === status);
-        return acc;
-      },
-      {} as Record<PostStatus, Post[]>
-    );
+    return statusOrder.reduce((acc, status) => {
+      acc[status] = posts.filter((p) => p.status === status);
+      return acc;
+    }, {} as Record<PostStatus, Post[]>);
   }, [posts]);
 
   // Get the active post being dragged
@@ -343,6 +365,11 @@ export default function PostsPage() {
       return;
     }
 
+    if (platforms.length === 0) {
+      toast.error("Please select at least one platform");
+      return;
+    }
+
     try {
       setSaving(true);
       const newPost = await createPost({
@@ -350,7 +377,8 @@ export default function PostsPage() {
         userId: user.uid,
         title: title.trim(),
         content: postContent.trim(),
-        platform: platform as any,
+        platforms: platforms,
+        type: postType,
         status: "idea",
         scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
       });
@@ -361,7 +389,8 @@ export default function PostsPage() {
       // Reset form
       setTitle("");
       setPostContent("");
-      setPlatform("instagram");
+      setPostType(undefined);
+      setPlatforms([]);
       const now = new Date();
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       setScheduledDate(now.toISOString().slice(0, 16));
@@ -587,68 +616,182 @@ export default function PostsPage() {
 
       {/* Add Post Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Post</DialogTitle>
-            <DialogDescription>Create a new content post.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Morning Routine Tips"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={saving}
-              />
+          <div className="space-y-2">
+            {/* Title - Large editable heading */}
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Untitled"
+              disabled={saving}
+              className="w-full text-3xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/30"
+            />
+
+            {/* Properties */}
+            <div className="space-y-3 py-4">
+              {/* Status - Always starts as Idea */}
+              <div className="flex items-center gap-4">
+                <span className="text-muted-foreground w-36 flex items-center gap-2">
+                  <CircleDot className="h-4 w-4" />
+                  Status
+                </span>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-base bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                  Idea
+                </div>
+              </div>
+
+              {/* Post Type */}
+              <div className="flex items-center gap-4">
+                <span className="text-muted-foreground w-36 flex items-center gap-2">
+                  <CircleDot className="h-4 w-4" />
+                  Type
+                </span>
+                <select
+                  value={postType || ""}
+                  onChange={(e) => {
+                    const newType = e.target.value as PostType | "";
+                    setPostType(newType || undefined);
+                    setPlatforms([]);
+                  }}
+                  disabled={saving}
+                  className="px-3 py-1.5 rounded-md text-base border border-border bg-background hover:bg-muted"
+                >
+                  <option value="">None</option>
+                  {POST_TYPES.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.label} - {type.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Platforms */}
+              <div className="flex items-center gap-4">
+                <span className="text-muted-foreground w-36 flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  Platforms *
+                </span>
+                <div className="flex-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start min-h-[40px] h-auto"
+                        disabled={saving}
+                      >
+                        {platforms.length === 0 ? (
+                          <span className="text-muted-foreground">
+                            Select platforms...
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {platforms.map((platformId) => {
+                              const platform = PLATFORMS.find(
+                                (p) => p.id === platformId
+                              );
+                              return (
+                                <Badge
+                                  key={platformId}
+                                  variant="secondary"
+                                  className="flex items-center gap-1"
+                                >
+                                  {platform?.logo && (
+                                    <Image
+                                      src={platform.logo}
+                                      alt={platform.name}
+                                      width={12}
+                                      height={12}
+                                    />
+                                  )}
+                                  {platform?.name}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-full">
+                      {PLATFORMS.filter((p) =>
+                        getAllowedPlatformsForType(postType).includes(
+                          p.id as PostPlatform
+                        )
+                      ).map((platform) => (
+                        <DropdownMenuCheckboxItem
+                          key={platform.id}
+                          checked={platforms.includes(
+                            platform.id as PostPlatform
+                          )}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setPlatforms([
+                                ...platforms,
+                                platform.id as PostPlatform,
+                              ]);
+                            } else {
+                              setPlatforms(
+                                platforms.filter((p) => p !== platform.id)
+                              );
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            {platform.logo && (
+                              <Image
+                                src={platform.logo}
+                                alt={platform.name}
+                                width={16}
+                                height={16}
+                              />
+                            )}
+                            {platform.name}
+                          </div>
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+
+              {/* Scheduled Date */}
+              <div className="flex items-center gap-4">
+                <span className="text-muted-foreground w-36 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Scheduled
+                </span>
+                <Input
+                  type="datetime-local"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  disabled={saving}
+                  className="w-auto border-none bg-transparent hover:bg-muted px-2 h-9"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="content">Content *</Label>
-              <Textarea
-                id="content"
-                placeholder="Write your post content..."
-                value={postContent}
-                onChange={(e) => setPostContent(e.target.value)}
-                disabled={saving}
-                rows={6}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="platform">Platform *</Label>
-              <select
-                id="platform"
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                disabled={saving}
-                className="w-full p-2 border rounded-md bg-background"
-              >
-                {PLATFORMS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="scheduled-date">Scheduled Date</Label>
-              <Input
-                id="scheduled-date"
-                type="datetime-local"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                disabled={saving}
-              />
-            </div>
+
+            <Separator className="my-6" />
+
+            {/* Content Editor */}
+            <PostEditor
+              content={postContent}
+              onChange={(content) => setPostContent(content)}
+              placeholder="What's happening?"
+            />
           </div>
-          <DialogFooter>
+          <DialogFooter className="mt-6">
             <Button
               variant="outline"
               onClick={() => {
                 setShowAddDialog(false);
                 setTitle("");
                 setPostContent("");
-                setPlatform("instagram");
+                setPostType(undefined);
+                setPlatforms([]);
                 const now = new Date();
                 now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
                 setScheduledDate(now.toISOString().slice(0, 16));
