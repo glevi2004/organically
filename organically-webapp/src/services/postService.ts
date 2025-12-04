@@ -173,17 +173,27 @@ export async function updatePost(
   try {
     const docRef = doc(db, POSTS_COLLECTION, postId);
 
+    // Filter out undefined values - Firestore doesn't accept them
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+
     const updateData: any = {
-      ...updates,
+      ...filteredUpdates,
       updatedAt: Timestamp.fromDate(new Date()),
     };
 
-    if (updates.scheduledDate) {
-      updateData.scheduledDate = Timestamp.fromDate(updates.scheduledDate);
+    // Convert dates to Timestamps
+    if (updates.scheduledDate !== undefined) {
+      updateData.scheduledDate = updates.scheduledDate
+        ? Timestamp.fromDate(updates.scheduledDate)
+        : null;
     }
 
-    if (updates.postedDate) {
-      updateData.postedDate = Timestamp.fromDate(updates.postedDate);
+    if (updates.postedDate !== undefined) {
+      updateData.postedDate = updates.postedDate
+        ? Timestamp.fromDate(updates.postedDate)
+        : null;
     }
 
     await updateDoc(docRef, updateData);
