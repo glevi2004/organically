@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Plus, Lightbulb, Loader2, GripVertical, Calendar } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Editor } from "@/components/Editor";
 import { toast } from "sonner";
 import {
   createIdea,
@@ -80,9 +81,6 @@ function SortableIdeaCard({
       )}
     >
       <div className="flex items-start gap-3">
-        {/* Lightbulb icon */}
-        <Lightbulb className="w-5 h-5 mt-0.5 text-yellow-500 shrink-0" />
-
         {/* Card Content - Clickable */}
         <div
           className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
@@ -119,7 +117,6 @@ function IdeaCardOverlay({ idea }: { idea: Idea }) {
   return (
     <div className="p-4 border rounded-lg bg-background shadow-lg ring-2 ring-primary">
       <div className="flex items-start gap-3">
-        <Lightbulb className="w-5 h-5 mt-0.5 text-yellow-500 shrink-0" />
         <div className="flex-1">
           <h3 className="font-semibold line-clamp-1">{idea.title}</h3>
           {idea.content && (
@@ -148,6 +145,7 @@ export default function IdeaDumpPage() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Drag state
@@ -216,11 +214,13 @@ export default function IdeaDumpPage() {
         profileId: activeProfile.id,
         userId: user.uid,
         title: title.trim(),
+        content: content.trim(),
       });
       setIdeas((prev) => [...prev, newIdea]);
       toast.success("Idea added!");
       setIsDialogOpen(false);
       setTitle("");
+      setContent("");
     } catch (error) {
       console.error("Error adding idea:", error);
       toast.error("Failed to add idea");
@@ -342,21 +342,28 @@ export default function IdeaDumpPage() {
 
       {/* Add Idea Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Add New Idea</DialogTitle>
+            <DialogTitle className="sr-only">Add New Idea</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              placeholder="What's your idea?"
+          <div className="space-y-2">
+            {/* Title - Large editable heading */}
+            <input
+              type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              placeholder="Untitled"
               disabled={saving}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !saving) {
-                  handleAddIdea();
-                }
-              }}
+              className="w-full text-3xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/30"
+            />
+
+            <Separator className="my-6" />
+
+            {/* Content Editor */}
+            <Editor
+              content={content}
+              onChange={setContent}
+              placeholder="Describe your idea..."
             />
           </div>
           <DialogFooter>
@@ -365,6 +372,7 @@ export default function IdeaDumpPage() {
               onClick={() => {
                 setIsDialogOpen(false);
                 setTitle("");
+                setContent("");
               }}
               disabled={saving}
             >
