@@ -12,7 +12,7 @@ export interface Post {
   profileId: string;
   userId: string;
   title: string;
-  content: string;
+  content: string; // Markdown content
   platform: PostPlatform;
   status: PostStatus;
   order: number; // Position within the status column
@@ -20,7 +20,6 @@ export interface Post {
   postedDate?: Date;
   hooks?: string[];
   hashtags?: string[];
-  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,11 +28,10 @@ export interface CreatePostInput {
   profileId: string;
   userId: string;
   title: string;
-  content: string;
+  content: string; // Markdown content
   platform: PostPlatform;
   status?: PostStatus;
   scheduledDate?: Date;
   hooks?: string[];
   hashtags?: string[];
-  notes?: string;
 }
