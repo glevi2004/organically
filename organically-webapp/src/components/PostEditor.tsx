@@ -133,4 +133,3 @@ export function PostEditor({ content, onChange, saveStatus = "idle", placeholder
     </div>
   )
 }
-
