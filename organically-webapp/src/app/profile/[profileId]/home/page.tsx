@@ -69,7 +69,9 @@ export default function HomePage() {
     return posts.filter((post) => {
       if (!post.scheduledDate) return false;
       const postDate = new Date(post.scheduledDate);
-      return postDate >= today && postDate < tomorrow && post.status !== "posted";
+      return (
+        postDate >= today && postDate < tomorrow && post.status !== "posted"
+      );
     });
   };
 
@@ -80,11 +82,15 @@ export default function HomePage() {
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
-    return posts.filter((post) => {
-      if (!post.scheduledDate) return false;
-      const postDate = new Date(post.scheduledDate);
-      return postDate >= today && postDate < nextWeek && post.status !== "posted";
-    }).slice(0, 5);
+    return posts
+      .filter((post) => {
+        if (!post.scheduledDate) return false;
+        const postDate = new Date(post.scheduledDate);
+        return (
+          postDate >= today && postDate < nextWeek && post.status !== "posted"
+        );
+      })
+      .slice(0, 5);
   };
 
   // Calculate streak (posts in last 7 days)
@@ -113,7 +119,7 @@ export default function HomePage() {
   const platforms = activeProfile?.platforms?.length || 0;
 
   return (
-    <div className="bg-background relative overflow-hidden min-h-[calc(100vh-5rem)]">
+    <div className="bg-background relative overflow-hidden">
       {/* Background Gradient Effect */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute left-1/3 top-1/4 w-[500px] h-[500px] bg-green-500/10 blur-3xl rounded-full" />
@@ -234,9 +240,7 @@ export default function HomePage() {
                     <div className="flex gap-2 justify-center">
                       <Button
                         onClick={() =>
-                          router.push(
-                            `/profile/${activeProfile?.id}/idea-dump`
-                          )
+                          router.push(`/profile/${activeProfile?.id}/idea-dump`)
                         }
                         variant="outline"
                       >
@@ -245,9 +249,7 @@ export default function HomePage() {
                       </Button>
                       <Button
                         onClick={() =>
-                          router.push(
-                            `/profile/${activeProfile?.id}/calendar`
-                          )
+                          router.push(`/profile/${activeProfile?.id}/calendar`)
                         }
                       >
                         <Sparkles className="w-4 h-4" />
@@ -258,21 +260,22 @@ export default function HomePage() {
                 ) : (
                   <div className="space-y-3">
                     {todaysTasks.map((task) => {
-                      const platformLogo = getPlatformIcon(task.platform);
+                      const firstPlatform = task.platforms?.[0];
+                      const platformLogo = firstPlatform
+                        ? getPlatformIcon(firstPlatform)
+                        : null;
                       return (
                         <div
                           key={task.id}
                           className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                           onClick={() =>
-                            router.push(
-                              `/profile/${activeProfile?.id}/posts`
-                            )
+                            router.push(`/profile/${activeProfile?.id}/posts`)
                           }
                         >
                           {platformLogo && (
                             <Image
                               src={platformLogo}
-                              alt={task.platform}
+                              alt={firstPlatform || "Platform"}
                               width={24}
                               height={24}
                             />
@@ -280,9 +283,12 @@ export default function HomePage() {
                           <div className="flex-1">
                             <p className="font-medium">{task.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              {task.platform.charAt(0).toUpperCase() +
-                                task.platform.slice(1)}{" "}
-                              • {task.status.charAt(0).toUpperCase() +
+                              {firstPlatform
+                                ? firstPlatform.charAt(0).toUpperCase() +
+                                  firstPlatform.slice(1)
+                                : "Multiple platforms"}{" "}
+                              •{" "}
+                              {task.status.charAt(0).toUpperCase() +
                                 task.status.slice(1)}
                             </p>
                           </div>
@@ -307,21 +313,22 @@ export default function HomePage() {
                 <CardContent>
                   <div className="space-y-2">
                     {upcomingPosts.map((post) => {
-                      const platformLogo = getPlatformIcon(post.platform);
+                      const firstPlatform = post.platforms?.[0];
+                      const platformLogo = firstPlatform
+                        ? getPlatformIcon(firstPlatform)
+                        : null;
                       return (
                         <div
                           key={post.id}
                           className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                           onClick={() =>
-                            router.push(
-                              `/profile/${activeProfile?.id}/posts`
-                            )
+                            router.push(`/profile/${activeProfile?.id}/posts`)
                           }
                         >
                           {platformLogo && (
                             <Image
                               src={platformLogo}
-                              alt={post.platform}
+                              alt={firstPlatform || "Platform"}
                               width={20}
                               height={20}
                             />
@@ -330,13 +337,14 @@ export default function HomePage() {
                             <p className="text-sm font-medium">{post.title}</p>
                             <p className="text-xs text-muted-foreground">
                               {post.scheduledDate &&
-                                new Date(
-                                  post.scheduledDate
-                                ).toLocaleDateString("en-US", {
-                                  weekday: "short",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+                                new Date(post.scheduledDate).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    weekday: "short",
+                                    month: "short",
+                                    day: "numeric",
+                                  }
+                                )}
                             </p>
                           </div>
                           <span
@@ -356,58 +364,6 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Button
-                    variant="outline"
-                    className="h-auto flex-col gap-2 py-6"
-                    onClick={() =>
-                      router.push(`/profile/${activeProfile?.id}/idea-dump`)
-                    }
-                  >
-                    <Lightbulb className="w-8 h-8" />
-                    <span className="font-medium">Generate Ideas</span>
-                    <span className="text-xs text-muted-foreground">
-                      AI brainstorming
-                    </span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="h-auto flex-col gap-2 py-6"
-                    onClick={() =>
-                      router.push(`/profile/${activeProfile?.id}/calendar`)
-                    }
-                  >
-                    <Sparkles className="w-8 h-8" />
-                    <span className="font-medium">Weekly Plan</span>
-                    <span className="text-xs text-muted-foreground">
-                      Generate schedule
-                    </span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="h-auto flex-col gap-2 py-6"
-                    onClick={() =>
-                      router.push(`/profile/${activeProfile?.id}/posts`)
-                    }
-                  >
-                    <FileEdit className="w-8 h-8" />
-                    <span className="font-medium">Manage Posts</span>
-                    <span className="text-xs text-muted-foreground">
-                      View all content
-                    </span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </>
         )}
       </div>
