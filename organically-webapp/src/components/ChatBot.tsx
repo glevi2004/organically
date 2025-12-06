@@ -11,6 +11,8 @@ import {
 import { useState } from "react";
 import {
   PromptInput,
+  PromptInputAttachment,
+  PromptInputAttachments,
   PromptInputButton,
   PromptInputFooter,
   PromptInputSelect,
@@ -21,9 +23,10 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
+  usePromptInputAttachments,
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
-import { GlobeIcon, MessageCircleIcon } from "lucide-react";
+import { GlobeIcon, MessageCircleIcon, PlusIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Message,
@@ -61,6 +64,19 @@ const models = [
   },
 ];
 
+// Component that uses the attachment context (must be inside PromptInput)
+function AttachFilesButton() {
+  const attachments = usePromptInputAttachments();
+  return (
+    <PromptInputButton
+      aria-label="Attach files"
+      onClick={() => attachments.openFileDialog()}
+    >
+      <PlusIcon className="size-4" />
+    </PromptInputButton>
+  );
+}
+
 export default function ChatBot() {
   const [input, setInput] = useState(""); // Add local state for input
   const [model, setModel] = useState<string>(models[0].value);
@@ -73,9 +89,9 @@ export default function ChatBot() {
   });
 
   const onSubmit = (message: PromptInputMessage) => {
-    if (message.text.trim()) {
+    if (message.text.trim() || message.files.length > 0) {
       sendMessage(
-        { text: message.text },
+        { text: message.text, files: message.files },
         {
           body: {
             model,
@@ -193,13 +209,22 @@ export default function ChatBot() {
         </Conversation>
 
         {/* Prompt Input */}
-        <PromptInput onSubmit={onSubmit} className="mt-4 shrink-0">
+        <PromptInput
+          onSubmit={onSubmit}
+          className="mt-4 shrink-0"
+          accept="application/pdf,image/*"
+          multiple
+        >
+          <PromptInputAttachments>
+            {(file) => <PromptInputAttachment data={file} />}
+          </PromptInputAttachments>
           <PromptInputTextarea
             onChange={(e) => setInput(e.target.value)}
             value={input}
           />
           <PromptInputFooter>
             <PromptInputTools>
+              <AttachFilesButton />
               <PromptInputButton
                 variant={webSearch ? "default" : "ghost"}
                 onClick={() => setWebSearch(!webSearch)}

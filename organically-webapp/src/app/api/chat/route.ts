@@ -35,6 +35,5 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     sendSources: true,
-    sendReasoning: true,
   });
 }
