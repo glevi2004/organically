@@ -1,79 +1,79 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
-import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
-import { Markdown } from "tiptap-markdown"
+import { useEffect, useRef, useState } from "react";
+import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
+import { Markdown } from "tiptap-markdown";
 
 // --- Tiptap Core Extensions ---
-import { StarterKit } from "@tiptap/starter-kit"
-import { Image } from "@tiptap/extension-image"
-import { TaskItem, TaskList } from "@tiptap/extension-list"
-import { TextAlign } from "@tiptap/extension-text-align"
-import { Typography } from "@tiptap/extension-typography"
-import { Highlight } from "@tiptap/extension-highlight"
-import { Subscript } from "@tiptap/extension-subscript"
-import { Superscript } from "@tiptap/extension-superscript"
-import { Selection } from "@tiptap/extensions"
+import { StarterKit } from "@tiptap/starter-kit";
+import { Image } from "@tiptap/extension-image";
+import { TaskItem, TaskList } from "@tiptap/extension-list";
+import { TextAlign } from "@tiptap/extension-text-align";
+import { Typography } from "@tiptap/extension-typography";
+import { Highlight } from "@tiptap/extension-highlight";
+import { Subscript } from "@tiptap/extension-subscript";
+import { Superscript } from "@tiptap/extension-superscript";
+import { Selection } from "@tiptap/extensions";
 
 // --- UI Primitives ---
-import { Button } from "@/components/tiptap-ui-primitive/button"
-import { Spacer } from "@/components/tiptap-ui-primitive/spacer"
+import { Button } from "@/components/tiptap-ui-primitive/button";
+import { Spacer } from "@/components/tiptap-ui-primitive/spacer";
 import {
   Toolbar,
   ToolbarGroup,
   ToolbarSeparator,
-} from "@/components/tiptap-ui-primitive/toolbar"
+} from "@/components/tiptap-ui-primitive/toolbar";
 
 // --- Tiptap Node ---
-import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension"
-import { HorizontalRule } from "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension"
-import "@/components/tiptap-node/blockquote-node/blockquote-node.scss"
-import "@/components/tiptap-node/code-block-node/code-block-node.scss"
-import "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss"
-import "@/components/tiptap-node/list-node/list-node.scss"
-import "@/components/tiptap-node/image-node/image-node.scss"
-import "@/components/tiptap-node/heading-node/heading-node.scss"
-import "@/components/tiptap-node/paragraph-node/paragraph-node.scss"
+import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension";
+import { HorizontalRule } from "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension";
+import "@/components/tiptap-node/blockquote-node/blockquote-node.scss";
+import "@/components/tiptap-node/code-block-node/code-block-node.scss";
+import "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss";
+import "@/components/tiptap-node/list-node/list-node.scss";
+import "@/components/tiptap-node/image-node/image-node.scss";
+import "@/components/tiptap-node/heading-node/heading-node.scss";
+import "@/components/tiptap-node/paragraph-node/paragraph-node.scss";
 
 // --- Tiptap UI ---
-import { HeadingDropdownMenu } from "@/components/tiptap-ui/heading-dropdown-menu"
-import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button"
-import { ListDropdownMenu } from "@/components/tiptap-ui/list-dropdown-menu"
-import { BlockquoteButton } from "@/components/tiptap-ui/blockquote-button"
-import { CodeBlockButton } from "@/components/tiptap-ui/code-block-button"
+import { HeadingDropdownMenu } from "@/components/tiptap-ui/heading-dropdown-menu";
+import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button";
+import { ListDropdownMenu } from "@/components/tiptap-ui/list-dropdown-menu";
+import { BlockquoteButton } from "@/components/tiptap-ui/blockquote-button";
+import { CodeBlockButton } from "@/components/tiptap-ui/code-block-button";
 import {
   ColorHighlightPopover,
   ColorHighlightPopoverContent,
   ColorHighlightPopoverButton,
-} from "@/components/tiptap-ui/color-highlight-popover"
+} from "@/components/tiptap-ui/color-highlight-popover";
 import {
   LinkPopover,
   LinkContent,
   LinkButton,
-} from "@/components/tiptap-ui/link-popover"
-import { MarkButton } from "@/components/tiptap-ui/mark-button"
-import { TextAlignButton } from "@/components/tiptap-ui/text-align-button"
-import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button"
+} from "@/components/tiptap-ui/link-popover";
+import { MarkButton } from "@/components/tiptap-ui/mark-button";
+import { TextAlignButton } from "@/components/tiptap-ui/text-align-button";
+import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button";
 
 // --- Icons ---
-import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon"
-import { HighlighterIcon } from "@/components/tiptap-icons/highlighter-icon"
-import { LinkIcon } from "@/components/tiptap-icons/link-icon"
+import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon";
+import { HighlighterIcon } from "@/components/tiptap-icons/highlighter-icon";
+import { LinkIcon } from "@/components/tiptap-icons/link-icon";
 
 // --- Hooks ---
-import { useIsBreakpoint } from "@/hooks/use-is-breakpoint"
+import { useIsBreakpoint } from "@/hooks/use-is-breakpoint";
 
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
+import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 
 // --- Styles ---
-import "./editor.scss"
+import "./editor.scss";
 
 interface EditorProps {
-  content: string
-  onChange: (content: string) => void
-  onBlur?: () => void
-  placeholder?: string
+  content: string;
+  onChange: (content: string) => void;
+  onBlur?: () => void;
+  placeholder?: string;
 }
 
 const MainToolbarContent = ({
@@ -81,9 +81,9 @@ const MainToolbarContent = ({
   onLinkClick,
   isMobile,
 }: {
-  onHighlighterClick: () => void
-  onLinkClick: () => void
-  isMobile: boolean
+  onHighlighterClick: () => void;
+  onLinkClick: () => void;
+  isMobile: boolean;
 }) => {
   return (
     <>
@@ -144,15 +144,15 @@ const MainToolbarContent = ({
 
       <Spacer />
     </>
-  )
-}
+  );
+};
 
 const MobileToolbarContent = ({
   type,
   onBack,
 }: {
-  type: "highlighter" | "link"
-  onBack: () => void
+  type: "highlighter" | "link";
+  onBack: () => void;
 }) => (
   <>
     <ToolbarGroup>
@@ -174,15 +174,20 @@ const MobileToolbarContent = ({
       <LinkContent />
     )}
   </>
-)
+);
 
-export function Editor({ content, onChange, onBlur, placeholder }: EditorProps) {
-  const isMobile = useIsBreakpoint()
+export function Editor({
+  content,
+  onChange,
+  onBlur,
+  placeholder,
+}: EditorProps) {
+  const isMobile = useIsBreakpoint();
   const [mobileView, setMobileView] = useState<"main" | "highlighter" | "link">(
     "main"
-  )
-  const toolbarRef = useRef<HTMLDivElement>(null)
-  const initialContentRef = useRef(content)
+  );
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const initialContentRef = useRef(content);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -228,30 +233,35 @@ export function Editor({ content, onChange, onBlur, placeholder }: EditorProps) 
     ],
     content: initialContentRef.current,
     onUpdate: ({ editor }) => {
-      const markdown = editor.storage.markdown.getMarkdown()
-      onChange(markdown)
+      const storage = editor.storage as unknown as {
+        markdown: { getMarkdown: () => string };
+      };
+      onChange(storage.markdown.getMarkdown());
     },
     onBlur: () => {
-      onBlur?.()
+      onBlur?.();
     },
-  })
+  });
 
   useEffect(() => {
     if (!isMobile && mobileView !== "main") {
-      setMobileView("main")
+      setMobileView("main");
     }
-  }, [isMobile, mobileView])
+  }, [isMobile, mobileView]);
 
   // Update content when it changes externally (only if significantly different)
   useEffect(() => {
     if (editor && content !== initialContentRef.current) {
-      const currentMarkdown = editor.storage.markdown?.getMarkdown() || ""
+      const storage = editor.storage as unknown as {
+        markdown?: { getMarkdown: () => string };
+      };
+      const currentMarkdown = storage.markdown?.getMarkdown() || "";
       if (content !== currentMarkdown) {
-        editor.commands.setContent(content)
-        initialContentRef.current = content
+        editor.commands.setContent(content);
+        initialContentRef.current = content;
       }
     }
-  }, [content, editor])
+  }, [content, editor]);
 
   return (
     <div className="post-editor-wrapper">
@@ -278,6 +288,5 @@ export function Editor({ content, onChange, onBlur, placeholder }: EditorProps) 
         />
       </EditorContext.Provider>
     </div>
-  )
+  );
 }
-
