@@ -493,11 +493,21 @@ export const PromptInput = ({
       if (!accept || accept.trim() === "") {
         return true;
       }
-      if (accept.includes("image/*")) {
-        return f.type.startsWith("image/");
-      }
-      // NOTE: keep simple; expand as needed
-      return true;
+      // Parse accept string into individual types
+      const acceptedTypes = accept
+        .split(",")
+        .map((t) => t.trim().toLowerCase());
+      const fileType = f.type.toLowerCase();
+
+      return acceptedTypes.some((acceptedType) => {
+        // Handle wildcard patterns like "image/*"
+        if (acceptedType.endsWith("/*")) {
+          const prefix = acceptedType.slice(0, -2); // e.g., "image"
+          return fileType.startsWith(prefix + "/");
+        }
+        // Exact match (e.g., "application/pdf")
+        return fileType === acceptedType;
+      });
     },
     [accept]
   );
