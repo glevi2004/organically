@@ -10,9 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Re-export sidebar content components
-export { Chatbot } from "@/components/Chatbot";
-
 export const RIGHT_SIDEBAR_DEFAULT_WIDTH = 25; // 25% of container width
 export const RIGHT_SIDEBAR_MIN_WIDTH = 20;
 export const RIGHT_SIDEBAR_MAX_WIDTH = 50;

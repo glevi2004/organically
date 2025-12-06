@@ -13,7 +13,6 @@ import {
   BreadcrumbProvider,
   useBreadcrumb,
 } from "@/contexts/BreadcrumbContext";
-import { Chatbot } from "@/components/navigation/right-sidebar";
 import {
   SidebarProvider,
   SidebarInset,
@@ -71,7 +70,6 @@ function HeaderSidebarToggle() {
     </Button>
   );
 }
-
 
 function RightSidebar() {
   const { isOpen } = useRightSidebar();
@@ -156,10 +154,8 @@ function RightSidebar() {
           )}
         />
         <div className="bg-sidebar flex h-full w-full flex-col">
-          {/* Right sidebar content - AI Chatbot */}
-          <div className="flex-1 overflow-auto">
-            <Chatbot />
-          </div>
+          {/* Right sidebar content - empty for now */}
+          <div className="flex-1 overflow-auto" />
         </div>
       </div>
     </div>
