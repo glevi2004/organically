@@ -64,10 +64,10 @@ export default function ChatBot() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 relative size-full">
-      <div className="flex flex-col h-full">
+    <div className="h-full min-h-0 max-w-4xl mx-auto p-2 relative size-full overflow-hidden max-h-full">
+      <div className="flex flex-col h-full min-h-0">
         {/* Messages */}
-        <Conversation>
+        <Conversation className="min-h-0">
           <ConversationContent>
             {messages.length === 0 ? (
               <ConversationEmptyState
@@ -111,7 +111,7 @@ export default function ChatBot() {
         </Conversation>
 
         {/* Prompt Input */}
-        <PromptInput onSubmit={onSubmit} className="mt-4">
+        <PromptInput onSubmit={onSubmit} className="mt-4 shrink-0">
           <PromptInputTextarea
             onChange={(e) => setInput(e.target.value)}
             value={input}

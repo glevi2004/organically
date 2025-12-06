@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
+import ChatBot from "@/components/ChatBot";
 
 const RIGHT_SIDEBAR_DEFAULT_WIDTH = 400; // pixels
 const RIGHT_SIDEBAR_MIN_WIDTH = 320;
@@ -153,9 +154,11 @@ function RightSidebar() {
             !isOpen && "pointer-events-none"
           )}
         />
-        <div className="bg-sidebar flex h-full w-full flex-col">
-          {/* Right sidebar content - empty for now */}
-          <div className="flex-1 overflow-auto" />
+        <div className="bg-sidebar flex h-full w-full flex-col overflow-hidden">
+          {/* Right sidebar content - ChatBot */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ChatBot />
+          </div>
         </div>
       </div>
     </div>

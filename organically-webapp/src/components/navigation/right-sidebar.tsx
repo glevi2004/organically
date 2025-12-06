@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import ChatBot from "@/components/ChatBot";
 
 export const RIGHT_SIDEBAR_DEFAULT_WIDTH = 25; // 25% of container width
 export const RIGHT_SIDEBAR_MIN_WIDTH = 20;
@@ -66,6 +67,14 @@ export function RightSidebarHeader({ children, className }: RightSidebarProps) {
 export function RightSidebarBody({ children, className }: RightSidebarProps) {
   return (
     <div className={cn("flex-1 overflow-auto p-4", className)}>{children}</div>
+  );
+}
+
+export function RightSidebarChatBot({ className }: { className?: string }) {
+  return (
+    <div className={cn("h-full w-full", className)}>
+      <ChatBot />
+    </div>
   );
 }
 

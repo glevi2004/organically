@@ -1,4 +1,23 @@
 import { streamText, UIMessage, convertToModelMessages } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { perplexity } from "@ai-sdk/perplexity";
+
+// Map string identifiers to actual model instances
+function getModel(modelId: string, webSearch: boolean) {
+  // If web search is enabled, use Perplexity
+  if (webSearch) {
+    return perplexity("sonar");
+  }
+
+  // Otherwise use the selected OpenAI model
+  switch (modelId) {
+    case "openai/gpt-4o":
+      return openai("gpt-4o");
+    case "openai/gpt-4o-mini":
+    default:
+      return openai("gpt-4o-mini");
+  }
+}
 
 export async function POST(req: Request) {
   const {
@@ -9,15 +28,11 @@ export async function POST(req: Request) {
     await req.json();
 
   const result = streamText({
-    model: webSearch ? "perplexity/sonar" : model,
+    model: getModel(model, webSearch),
     messages: convertToModelMessages(messages),
     system: "You are a helpful assistant",
   });
 
-  //  manually access stram with result.textStream
-  // or result.fullStream (all the data, reasoning, etc.)
-
-  // send sources and reasoning back to the client
   return result.toUIMessageStreamResponse({
     sendSources: true,
     sendReasoning: true,
