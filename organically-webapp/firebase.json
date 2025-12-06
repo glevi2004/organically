@@ -3,6 +3,6 @@
     "rules": "src/firebase/firestore.rules"
   },
   "storage": {
-    "rules": "storage.rules"
+    "rules": "src/firebase/storage.rules"
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -33,14 +33,7 @@ export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
 
-  // Load data
-  useEffect(() => {
-    if (activeProfile) {
-      loadDashboardData();
-    }
-  }, [activeProfile]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     if (!activeProfile) return;
 
     try {
@@ -57,7 +50,14 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeProfile]);
+
+  // Load data
+  useEffect(() => {
+    if (activeProfile) {
+      loadDashboardData();
+    }
+  }, [activeProfile, loadDashboardData]);
 
   // Get today's tasks (posts scheduled for today)
   const getTodaysTasks = () => {

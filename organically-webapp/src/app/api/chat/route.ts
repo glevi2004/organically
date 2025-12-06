@@ -1,70 +1,58 @@
-import { streamAgentResponse, ChatMessage } from "@/lib/langchain/agent";
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages, UIMessage, stepCountIs } from "ai";
+import { z } from "zod";
 import { Profile } from "@/types/profile";
+import { buildProfileContext } from "@/lib/langchain/context";
+import { executeWebSearch } from "@/lib/langchain/tools";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
-    const { messages, profile } = await req.json();
+    const { messages, profile }: { messages: UIMessage[]; profile: Profile } =
+      await req.json();
 
-    // Validate profile
     if (!profile || !profile.id) {
-      return new Response(
-        JSON.stringify({ error: "profile is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "profile is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    // Cast to Profile type (profile is passed from client which already has it)
-    const profileData = profile as Profile;
+    const systemPrompt = buildProfileContext(profile);
 
-    // Convert incoming messages to ChatMessage format
-    const chatMessages: ChatMessage[] = messages.map((msg: { role: string; content?: string; parts?: Array<{ type: string; text: string }> }) => ({
-      role: msg.role as "user" | "assistant",
-      content: msg.content || msg.parts?.filter((p: { type: string }) => p.type === "text").map((p: { text: string }) => p.text).join("") || "",
-    }));
-
-    // Create a streaming response
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of streamAgentResponse(profileData, chatMessages)) {
-            // Format as SSE-compatible data stream for @ai-sdk/react useChat
-            const data = JSON.stringify({
-              type: "text",
-              value: chunk,
-            });
-            controller.enqueue(encoder.encode(`0:${data}\n`));
-          }
-          
-          // Send finish message
-          const finishData = JSON.stringify({
-            finishReason: "stop",
-            usage: { promptTokens: 0, completionTokens: 0 },
-          });
-          controller.enqueue(encoder.encode(`d:${finishData}\n`));
-          
-          controller.close();
-        } catch (error) {
-          console.error("Streaming error:", error);
-          controller.error(error);
-        }
+    const result = streamText({
+      model: openai("gpt-4o-mini"),
+      system: systemPrompt,
+      messages: convertToModelMessages(messages),
+      tools: {
+        web_search: {
+          description: `Search the web for current information. Use this tool when you need:
+            - Real-time data (news, trends, current events)
+            - Information about recent topics the model might not know
+            - Fact-checking or verification
+            - Research on specific topics, brands, or competitors
+            - Social media trends and viral content ideas`,
+          inputSchema: z.object({
+            query: z.string().describe("The search query to look up on the web"),
+            maxResults: z
+              .number()
+              .optional()
+              .default(5)
+              .describe("Maximum number of results to return (1-10)"),
+          }),
+          execute: executeWebSearch,
+        },
       },
+      stopWhen: stepCountIs(5),
     });
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-      },
-    });
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

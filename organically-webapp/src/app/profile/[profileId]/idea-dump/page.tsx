@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -175,14 +175,7 @@ export default function IdeaDumpPage() {
     return ideas.find((i) => i.id === activeId) || null;
   }, [activeId, ideas]);
 
-  // Load ideas
-  useEffect(() => {
-    if (activeProfile) {
-      loadIdeas();
-    }
-  }, [activeProfile]);
-
-  const loadIdeas = async () => {
+  const loadIdeas = useCallback(async () => {
     if (!activeProfile) return;
 
     try {
@@ -195,7 +188,14 @@ export default function IdeaDumpPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeProfile]);
+
+  // Load ideas
+  useEffect(() => {
+    if (activeProfile) {
+      loadIdeas();
+    }
+  }, [activeProfile, loadIdeas]);
 
   // Navigate to idea edit page
   const handleOpenIdea = (idea: Idea) => {

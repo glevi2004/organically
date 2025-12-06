@@ -1,154 +1,60 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { useProfile } from "@/contexts/ProfileContext";
-
 import { Chat } from "@/components/ui/chat";
 import type { Message } from "@/components/ui/chat-message";
 
-interface ChatMessagePart {
-  type: "text";
-  text: string;
-}
-
-interface UIMessage {
-  id: string;
-  role: "user" | "assistant";
-  parts?: ChatMessagePart[];
-}
-
 export function Chatbot() {
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<UIMessage[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
   const { activeProfile } = useProfile();
+  const [input, setInput] = useState("");
 
-  // Convert UIMessage[] to Message[] for the Chat component
+  // Memoize transport to prevent recreation on every render
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: { profile: activeProfile },
+      }),
+    [activeProfile]
+  );
+
+  const { messages, sendMessage, status, stop, setMessages } = useChat({
+    transport,
+  });
+
+  const isGenerating = status === "streaming" || status === "submitted";
+
+  // Convert AI SDK UIMessage to our Message type for the Chat component
   const convertedMessages: Message[] = messages.map((msg) => ({
     id: msg.id,
-    role: msg.role,
+    role: msg.role as "user" | "assistant",
     content:
       msg.parts
-        ?.filter((part): part is ChatMessagePart => part.type === "text")
+        ?.filter(
+          (part): part is { type: "text"; text: string } => part.type === "text"
+        )
         .map((part) => part.text)
         .join("") ?? "",
+    parts: msg.parts as Message["parts"],
+    toolInvocations: extractToolInvocations(msg.parts),
   }));
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
   };
 
-  const sendMessage = useCallback(
-    async (userMessage: string) => {
-      if (!activeProfile || !userMessage.trim()) return;
-
-      const userMsg: UIMessage = {
-        id: Date.now().toString(),
-        role: "user",
-        parts: [{ type: "text", text: userMessage }],
-      };
-
-      const assistantMsgId = (Date.now() + 1).toString();
-
-      // Only add user message first - assistant message will be added when we get content
-      setMessages((prev) => [...prev, userMsg]);
-      setIsGenerating(true);
-
-      try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messages: [...messages, userMsg].map((m) => ({
-              role: m.role,
-              content: m.parts?.map((p) => p.text).join("") ?? "",
-            })),
-            profile: activeProfile,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to send message");
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error("No reader available");
-
-        const decoder = new TextDecoder();
-        let accumulatedText = "";
-        let assistantMessageAdded = false;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n").filter((line) => line.trim());
-
-          for (const line of lines) {
-            // Parse SSE format: 0:{json} for text, d:{json} for done
-            if (line.startsWith("0:")) {
-              try {
-                const data = JSON.parse(line.slice(2));
-                if (data.value) {
-                  accumulatedText += data.value;
-
-                  if (!assistantMessageAdded) {
-                    // Add assistant message on first chunk
-                    assistantMessageAdded = true;
-                    setMessages((prev) => [
-                      ...prev,
-                      {
-                        id: assistantMsgId,
-                        role: "assistant",
-                        parts: [{ type: "text", text: accumulatedText }],
-                      },
-                    ]);
-                  } else {
-                    // Update existing assistant message
-                    setMessages((prev) => {
-                      const updated = [...prev];
-                      const lastMsg = updated[updated.length - 1];
-                      if (lastMsg.role === "assistant") {
-                        lastMsg.parts = [
-                          { type: "text", text: accumulatedText },
-                        ];
-                      }
-                      return updated;
-                    });
-                  }
-                }
-              } catch {
-                // Skip malformed JSON
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Chat error:", error);
-      } finally {
-        setIsGenerating(false);
-      }
-    },
-    [activeProfile, messages]
-  );
-
   const handleSubmit = (e?: { preventDefault?: () => void }) => {
     e?.preventDefault?.();
     if (!input.trim() || !activeProfile) return;
-    const messageText = input.trim();
+    sendMessage({
+      parts: [{ type: "text", text: input }],
+    });
     setInput("");
-    sendMessage(messageText);
   };
 
-  const stop = useCallback(() => {
-    // TODO: Implement abort controller for stopping generation
-    setIsGenerating(false);
-  }, []);
-
-  // Show message if no profile is selected
   if (!activeProfile) {
     return (
       <div className="flex h-full items-center justify-center p-4">
@@ -169,8 +75,48 @@ export function Chatbot() {
         handleSubmit={handleSubmit}
         isGenerating={isGenerating}
         stop={stop}
-        setMessages={setMessages as unknown as (messages: Message[]) => void}
+        setMessages={setMessages as any}
       />
     </div>
   );
+}
+
+// Extract tool invocations from parts for backward compatibility with chat-message.tsx
+function extractToolInvocations(parts: any[] | undefined) {
+  if (!parts) return undefined;
+
+  const toolInvocations: any[] = [];
+
+  for (const part of parts) {
+    // Check for tool parts (they start with "tool-" or are "dynamic-tool")
+    if (
+      part.type?.startsWith("tool-") ||
+      part.type === "dynamic-tool" ||
+      part.type === "tool-invocation"
+    ) {
+      const toolName =
+        part.toolName || part.type?.replace("tool-", "") || "unknown";
+
+      // Map AI SDK 5.0 states to our ToolInvocation states
+      let state: "partial-call" | "call" | "result" = "call";
+      if (part.state === "output-available" || part.state === "output-error") {
+        state = "result";
+      } else if (part.state === "input-streaming") {
+        state = "partial-call";
+      }
+
+      toolInvocations.push({
+        toolCallId: part.toolCallId,
+        toolName,
+        state,
+        args: part.input,
+        result:
+          part.state === "output-error"
+            ? { error: part.errorText }
+            : part.output,
+      });
+    }
+  }
+
+  return toolInvocations.length > 0 ? toolInvocations : undefined;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +30,7 @@ import {
   updatePost,
   reorderPosts,
 } from "@/services/postService";
-import { Post, PostStatus } from "@/types/post";
+import { Post, PostStatus, PostPlatform } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/profile-constants";
 
@@ -274,7 +274,7 @@ export default function CalendarPage() {
   // Form state
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [platform, setPlatform] = useState("instagram");
+  const [platform, setPlatform] = useState<PostPlatform>("instagram");
   const [scheduledDate, setScheduledDate] = useState("");
 
   // DnD Sensors
@@ -290,20 +290,13 @@ export default function CalendarPage() {
   );
 
   // Get start and end of current month
-  const getMonthRange = (date: Date) => {
+  const getMonthRange = useCallback((date: Date) => {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
     return { start, end };
-  };
+  }, []);
 
-  // Load posts for current month
-  useEffect(() => {
-    if (activeProfile) {
-      loadPosts();
-    }
-  }, [activeProfile, currentDate]);
-
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     if (!activeProfile) return;
 
     try {
@@ -321,7 +314,14 @@ export default function CalendarPage() {
     } finally {
       setLoadingPosts(false);
     }
-  };
+  }, [activeProfile, currentDate, getMonthRange]);
+
+  // Load posts for current month
+  useEffect(() => {
+    if (activeProfile) {
+      loadPosts();
+    }
+  }, [activeProfile, loadPosts]);
 
   const handleAddPost = async () => {
     if (
@@ -342,7 +342,7 @@ export default function CalendarPage() {
         userId: user.uid,
         title: title.trim(),
         content: content.trim(),
-        platform: platform as any,
+        platforms: [platform],
         status: "draft",
         scheduledDate: new Date(scheduledDate),
       });
@@ -681,7 +681,7 @@ export default function CalendarPage() {
               <select
                 id="platform"
                 value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
+                onChange={(e) => setPlatform(e.target.value as PostPlatform)}
                 disabled={saving}
                 className="w-full p-2 border rounded-md bg-background"
               >
@@ -710,7 +710,7 @@ export default function CalendarPage() {
                 setShowAddDialog(false);
                 setTitle("");
                 setContent("");
-                setPlatform("instagram");
+                setPlatform("instagram" as PostPlatform);
                 setScheduledDate("");
               }}
               disabled={saving}

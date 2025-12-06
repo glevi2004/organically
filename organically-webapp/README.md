@@ -1,8 +1,8 @@
-# 🌱 Organically - Social Media Content Manager
+# 🌱 Organically - AI-Powered Social Media Content Manager
 
-**Plan. Create. Organize. Stay Consistent.**
+**Plan. Create. Organize. Stay Consistent — With AI.**
 
-A Next.js application that helps creators and brands manage their social media content with structured planning and organization tools.
+A Next.js application that helps creators and brands manage their social media content with AI-powered planning, organization, and content generation tools.
 
 ## 🚀 Quick Start
 
@@ -24,6 +24,9 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
+
+# OpenAI Configuration (for AI Assistant)
+OPENAI_API_KEY=...
 ```
 
 ### 3. Run Development Server
@@ -36,59 +39,81 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 ## ✨ Features
 
+- 🤖 **AI Assistant** - LangChain-powered chatbot with profile-aware context for content ideas and strategy
 - 🎯 **Profile-Based Organization** - Manage multiple content profiles with custom settings
-- 💡 **Idea Dump** - Quick note-taking for capturing content ideas
+- 💡 **Idea Dump** - Quick note-taking for capturing content ideas with drag-and-drop reordering
 - 📅 **Content Calendar** - Visual planning and scheduling for your posts
-- 📝 **Post Manager** - Create, edit, and organize your content by status
+- 📝 **Post Manager** - Create, edit, and organize your content with a rich text editor
 - 🎨 **Multi-Platform Support** - Instagram, TikTok, YouTube, X (Twitter), LinkedIn
-- 📊 **Kanban Board** - Track posts through idea, draft, ready, and posted stages
-- 🔐 **Secure Authentication** - Firebase Auth for user management
+- 📊 **Kanban Board** - Drag-and-drop workflow: Idea → Draft → Ready → Posted
+- 🔐 **Secure Authentication** - Firebase Auth with email/password and Google OAuth
+- 🎨 **Rich Text Editor** - TipTap-powered editor with markdown support
 
-## 📖 Documentation
+## 🤖 AI Integration
 
-**For detailed planning and architecture:** See [`planning/`](planning/) directory
+Organically features an AI assistant powered by **LangChain** and **OpenAI GPT-4o-mini**. The AI is context-aware and uses your profile data to provide personalized suggestions:
 
-This includes:
+- **Profile Context Injection** - The AI understands your brand voice, niche, target audience, and platforms
+- **Content Ideas** - Generate content ideas tailored to your audience and posting schedule
+- **Strategy Recommendations** - Get platform-specific best practices and growth strategies
+- **Streaming Responses** - Real-time streaming for a responsive chat experience
 
-- 🔧 Full feature planning documents
-- 📦 Implementation details
-- 🐛 Troubleshooting guides
+### How it works
+
+1. Your profile settings (brand voice, niche, audience, platforms, consistency level) are used to build a dynamic system prompt
+2. The LangChain agent processes your messages with full context
+3. Responses are streamed via Server-Sent Events for a smooth UX
 
 ## 🛠️ Tech Stack
 
-- **Framework:** Next.js 16 (App Router)
-- **Language:** TypeScript
-- **Database:** Firebase Firestore
-- **Authentication:** Firebase Auth
-- **Storage:** Firebase Storage
-- **Styling:** Tailwind CSS
-- **UI Components:** Radix UI, shadcn/ui
+| Category             | Technology                       |
+| -------------------- | -------------------------------- |
+| **Framework**        | Next.js 16 (App Router)          |
+| **Language**         | TypeScript                       |
+| **Database**         | Firebase Firestore               |
+| **Authentication**   | Firebase Auth                    |
+| **Storage**          | Firebase Storage                 |
+| **AI/LLM**           | LangChain + OpenAI (GPT-4o-mini) |
+| **Styling**          | Tailwind CSS 4                   |
+| **UI Components**    | Radix UI, shadcn/ui              |
+| **Rich Text Editor** | TipTap                           |
+| **Drag & Drop**      | @dnd-kit                         |
+| **Animations**       | Framer Motion                    |
 
 ## 📁 Project Structure
 
 ```
 src/
 ├── app/
-│   ├── profile/[profileId]/ # Main app pages
-│   │   ├── home/           # Dashboard
-│   │   ├── idea-dump/      # Quick idea notes
-│   │   ├── calendar/       # Content scheduling
-│   │   ├── posts/          # Post management
-│   │   └── profile/        # Profile management
-│   └── onboarding/         # User onboarding flow
-├── components/             # Reusable UI components
-├── services/              # Firebase services
-├── types/                 # TypeScript type definitions
-├── contexts/              # React contexts (Profile, Auth)
-└── lib/                   # Utilities and constants
+│   ├── api/chat/             # AI chat API endpoint
+│   ├── auth/                 # Login/signup
+│   ├── onboarding/           # Multi-step onboarding flow
+│   └── profile/[profileId]/  # Main app pages
+│       ├── home/             # Dashboard
+│       ├── idea-dump/        # Quick idea notes
+│       ├── calendar/         # Content scheduling
+│       ├── posts/            # Post management (Kanban)
+│       ├── profile/          # Profile settings
+│       └── settings/         # App settings
+├── components/               # Reusable UI components
+├── contexts/                 # React contexts (Auth, Profile, Sidebar)
+├── services/                 # Firebase service layer
+├── hooks/                    # Custom React hooks
+├── lib/
+│   ├── langchain/            # AI agent configuration
+│   │   ├── agent.ts          # LangChain agent setup
+│   │   ├── context.ts        # Profile context builder
+│   │   └── tools/            # Agent tools (extensible)
+│   └── ...                   # Utilities and constants
+└── types/                    # TypeScript interfaces
 ```
 
 ## 🔐 Security
 
 - Firebase Authentication for secure user management
-- Firestore Security Rules for data protection
+- Firestore Security Rules with user ownership validation
+- Storage rules for secure file uploads (5MB limit, image types only)
 - Server-side validation and access control
-- Secure file uploads with Firebase Storage
 
 ## 🌐 Deploy to Vercel
 
@@ -96,7 +121,7 @@ The easiest deployment option:
 
 1. Push your code to GitHub
 2. Import to Vercel
-3. Add Firebase environment variables
+3. Add environment variables (Firebase + OpenAI)
 4. Deploy!
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
@@ -111,4 +136,4 @@ This is a private project. For questions or issues, please contact the maintaine
 
 ---
 
-**Built with ❤️ using Next.js and Firebase**
+**Built with ❤️ using Next.js, Firebase, and LangChain**
