@@ -25,6 +25,30 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { GlobeIcon, MessageCircleIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from "@/components/ai-elements/message";
+import {
+  Reasoning,
+  ReasoningTrigger,
+  ReasoningContent,
+} from "@/components/ai-elements/reasoning";
+import {
+  Sources,
+  SourcesTrigger,
+  SourcesContent,
+  Source,
+} from "@/components/ai-elements/sources";
+import {
+  Tool,
+  ToolHeader,
+  ToolContent,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
+import type { ToolUIPart } from "ai";
 
 const models = [
   {
@@ -76,35 +100,93 @@ export default function ChatBot() {
                 description="Ask me anything!"
               />
             ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex flex-col gap-1",
-                    message.role === "user" ? "items-end" : "items-start"
-                  )}
-                >
-                  <span className="text-xs text-muted-foreground capitalize">
-                    {message.role}
-                  </span>
-                  <div
-                    className={cn(
-                      "rounded-lg px-4 py-2 max-w-[80%]",
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+              messages.map((message) => {
+                const sourceUrlParts = message.parts.filter(
+                  (part) => part.type === "source-url"
+                );
+                const hasSources =
+                  message.role === "assistant" && sourceUrlParts.length > 0;
+
+                return (
+                  <Message key={message.id} from={message.role}>
+                    {hasSources && (
+                      <Sources>
+                        <SourcesTrigger count={sourceUrlParts.length} />
+                        <SourcesContent>
+                          {sourceUrlParts.map((part, idx) => (
+                            <Source
+                              key={`${message.id}-source-${idx}`}
+                              href={"url" in part ? part.url : "#"}
+                              title={"url" in part ? part.url : "Source"}
+                            />
+                          ))}
+                        </SourcesContent>
+                      </Sources>
                     )}
-                  >
-                    {message.parts.map((part, i) =>
-                      part.type === "text" ? (
-                        <p key={i} className="whitespace-pre-wrap">
-                          {part.text}
-                        </p>
-                      ) : null
-                    )}
-                  </div>
-                </div>
-              ))
+                    <MessageContent>
+                      {message.parts.map((part, i) => {
+                        switch (part.type) {
+                          case "text":
+                            return (
+                              <MessageResponse key={`${message.id}-${i}`}>
+                                {part.text as string}
+                              </MessageResponse>
+                            );
+                          case "reasoning":
+                            return (
+                              <Reasoning
+                                key={`${message.id}-${i}`}
+                                className="w-full"
+                                isStreaming={
+                                  message.parts[message.parts.length - 1]
+                                    ?.type === "reasoning" &&
+                                  status === "streaming"
+                                }
+                              >
+                                <ReasoningTrigger />
+                                <ReasoningContent>
+                                  {part.text as string}
+                                </ReasoningContent>
+                              </Reasoning>
+                            );
+                          case "source-url":
+                            // Skip source-url parts here as they're rendered in Sources above
+                            return null;
+                          default:
+                            if (part.type.startsWith("tool-")) {
+                              const genericToolPart = part as ToolUIPart;
+                              return (
+                                <Tool
+                                  key={`${message.id}-${i}`}
+                                  defaultOpen={true}
+                                >
+                                  <ToolHeader
+                                    type={genericToolPart.type}
+                                    state={genericToolPart.state}
+                                  />
+                                  <ToolContent>
+                                    <ToolInput input={genericToolPart.input} />
+                                    <ToolOutput
+                                      output={
+                                        <MessageResponse>
+                                          {JSON.stringify(
+                                            genericToolPart.output
+                                          ).slice(0, 500)}
+                                        </MessageResponse>
+                                      }
+                                      errorText={genericToolPart.errorText}
+                                    />
+                                  </ToolContent>
+                                </Tool>
+                              );
+                            }
+                            return null;
+                        }
+                      })}
+                    </MessageContent>
+                  </Message>
+                );
+              })
             )}
           </ConversationContent>
           <ConversationScrollButton />
