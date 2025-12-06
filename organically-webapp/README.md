@@ -2,7 +2,7 @@
 
 **Plan. Create. Organize. Stay Consistent.**
 
-A Next.js application that helps creators and brands manage their social media content with structured planning and organization tools.
+A Next.js application that helps creators and brands manage their social media content with powerful planning, organization, and content creation tools.
 
 ## 🚀 Quick Start
 
@@ -37,58 +37,57 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 ## ✨ Features
 
 - 🎯 **Profile-Based Organization** - Manage multiple content profiles with custom settings
-- 💡 **Idea Dump** - Quick note-taking for capturing content ideas
+- 💡 **Idea Dump** - Quick note-taking for capturing content ideas with drag-and-drop reordering
 - 📅 **Content Calendar** - Visual planning and scheduling for your posts
-- 📝 **Post Manager** - Create, edit, and organize your content by status
+- 📝 **Post Manager** - Create, edit, and organize your content with a rich text editor
 - 🎨 **Multi-Platform Support** - Instagram, TikTok, YouTube, X (Twitter), LinkedIn
-- 📊 **Kanban Board** - Track posts through idea, draft, ready, and posted stages
-- 🔐 **Secure Authentication** - Firebase Auth for user management
-
-## 📖 Documentation
-
-**For detailed planning and architecture:** See [`planning/`](planning/) directory
-
-This includes:
-
-- 🔧 Full feature planning documents
-- 📦 Implementation details
-- 🐛 Troubleshooting guides
+- 📊 **Kanban Board** - Drag-and-drop workflow: Idea → Draft → Ready → Posted
+- 🔐 **Secure Authentication** - Firebase Auth with email/password and Google OAuth
+- 🎨 **Rich Text Editor** - TipTap-powered editor with markdown support
 
 ## 🛠️ Tech Stack
 
-- **Framework:** Next.js 16 (App Router)
-- **Language:** TypeScript
-- **Database:** Firebase Firestore
-- **Authentication:** Firebase Auth
-- **Storage:** Firebase Storage
-- **Styling:** Tailwind CSS
-- **UI Components:** Radix UI, shadcn/ui
+| Category             | Technology              |
+| -------------------- | ----------------------- |
+| **Framework**        | Next.js 16 (App Router) |
+| **Language**         | TypeScript              |
+| **Database**         | Firebase Firestore      |
+| **Authentication**   | Firebase Auth           |
+| **Storage**          | Firebase Storage        |
+| **Styling**          | Tailwind CSS 4          |
+| **UI Components**    | Radix UI, shadcn/ui     |
+| **Rich Text Editor** | TipTap                  |
+| **Drag & Drop**      | @dnd-kit                |
+| **Animations**       | Framer Motion           |
 
 ## 📁 Project Structure
 
 ```
 src/
 ├── app/
-│   ├── profile/[profileId]/ # Main app pages
-│   │   ├── home/           # Dashboard
-│   │   ├── idea-dump/      # Quick idea notes
-│   │   ├── calendar/       # Content scheduling
-│   │   ├── posts/          # Post management
-│   │   └── profile/        # Profile management
-│   └── onboarding/         # User onboarding flow
-├── components/             # Reusable UI components
-├── services/              # Firebase services
-├── types/                 # TypeScript type definitions
-├── contexts/              # React contexts (Profile, Auth)
-└── lib/                   # Utilities and constants
+│   ├── auth/                 # Login/signup
+│   ├── onboarding/           # Multi-step onboarding flow
+│   └── profile/[profileId]/  # Main app pages
+│       ├── home/             # Dashboard
+│       ├── idea-dump/        # Quick idea notes
+│       ├── calendar/         # Content scheduling
+│       ├── posts/            # Post management (Kanban)
+│       ├── profile/          # Profile settings
+│       └── settings/         # App settings
+├── components/               # Reusable UI components
+├── contexts/                 # React contexts (Auth, Profile, Sidebar)
+├── services/                 # Firebase service layer
+├── hooks/                    # Custom React hooks
+├── lib/                      # Utilities and constants
+└── types/                    # TypeScript interfaces
 ```
 
 ## 🔐 Security
 
 - Firebase Authentication for secure user management
-- Firestore Security Rules for data protection
+- Firestore Security Rules with user ownership validation
+- Storage rules for secure file uploads (5MB limit, image types only)
 - Server-side validation and access control
-- Secure file uploads with Firebase Storage
 
 ## 🌐 Deploy to Vercel
 
@@ -96,7 +95,7 @@ The easiest deployment option:
 
 1. Push your code to GitHub
 2. Import to Vercel
-3. Add Firebase environment variables
+3. Add environment variables (Firebase)
 4. Deploy!
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)

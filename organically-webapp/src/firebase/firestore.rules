@@ -36,8 +36,11 @@ service cloud.firestore {
 
     // --- PROFILES COLLECTION ---
     match /profiles/{profileId} {
-      // Allow listing/querying profiles for authenticated users
-      allow list: if isAuthenticated();
+      // Allow listing/querying profiles only for the owner's profiles
+      // The query must filter by userId == request.auth.uid
+      allow list: if isAuthenticated() 
+                  && request.query.limit <= 100
+                  && resource.data.userId == request.auth.uid;
       
       // When reading a specific profile, verify ownership
       allow get: if isAuthenticated() && resource.data.userId == request.auth.uid;
@@ -56,7 +59,9 @@ service cloud.firestore {
 
     // --- POSTS COLLECTION ---
     match /posts/{postId} {
-      allow list: if isAuthenticated();
+      // Allow listing/querying posts only for the owner's posts
+      allow list: if isAuthenticated() 
+                  && resource.data.userId == request.auth.uid;
       
       allow get: if isAuthenticated() && resource.data.userId == request.auth.uid;
 
@@ -73,7 +78,9 @@ service cloud.firestore {
 
     // --- IDEAS COLLECTION ---
     match /ideas/{ideaId} {
-      allow list: if isAuthenticated();
+      // Allow listing/querying ideas only for the owner's ideas
+      allow list: if isAuthenticated() 
+                  && resource.data.userId == request.auth.uid;
       
       allow get: if isAuthenticated() && resource.data.userId == request.auth.uid;
 

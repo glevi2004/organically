@@ -13,11 +13,9 @@ import {
   BreadcrumbProvider,
   useBreadcrumb,
 } from "@/contexts/BreadcrumbContext";
-import { Chatbot } from "@/components/navigation/right-sidebar";
 import {
   SidebarProvider,
   SidebarInset,
-  useSidebar,
 } from "@/components/animate-ui/components/radix/sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -45,18 +43,12 @@ const RIGHT_SIDEBAR_MAX_WIDTH = 600;
 // Floating AI button (shown when sidebar is closed)
 function FloatingAIButton() {
   const { open, isOpen } = useRightSidebar();
-  const { setOpen: setLeftOpen } = useSidebar();
 
   if (isOpen) return null;
 
-  const handleClick = () => {
-    setLeftOpen(false);
-    open();
-  };
-
   return (
     <Button
-      onClick={handleClick}
+      onClick={open}
       className="size-16 rounded-full bg-linear-to-r from-green-600 via-emerald-500 to-teal-600 hover:opacity-90 shadow-md"
     >
       <Bot className="size-8 text-white" />
@@ -77,20 +69,6 @@ function HeaderSidebarToggle() {
       <span className="sr-only">Close Sidebar</span>
     </Button>
   );
-}
-
-// Component to register the left sidebar close callback with right sidebar context
-// This is used for openPost() calls from other components
-function SidebarCallbackRegistrar() {
-  const { setOnOpen } = useRightSidebar();
-  const { setOpen: setLeftOpen } = useSidebar();
-
-  useEffect(() => {
-    setOnOpen(() => setLeftOpen(false));
-    return () => setOnOpen(null);
-  }, [setOnOpen, setLeftOpen]);
-
-  return null;
 }
 
 function RightSidebar() {
@@ -176,10 +154,8 @@ function RightSidebar() {
           )}
         />
         <div className="bg-sidebar flex h-full w-full flex-col">
-          {/* Right sidebar content - AI Chatbot */}
-          <div className="flex-1 overflow-auto">
-            <Chatbot />
-          </div>
+          {/* Right sidebar content - empty for now */}
+          <div className="flex-1 overflow-auto" />
         </div>
       </div>
     </div>
@@ -197,7 +173,6 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
     loading: profileLoading,
     setActiveProfile,
   } = useProfile();
-  const { close: closeRightSidebar } = useRightSidebar();
   const { customTitle } = useBreadcrumb();
   const profileId = params.profileId as string;
 
@@ -257,16 +232,12 @@ function ProfileLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <SidebarCallbackRegistrar />
       <LeftSidebarProvider>
         <AppSidebar />
         <SidebarInset className="flex-1 flex flex-col">
           <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-2 px-4">
-              <LeftSidebarTrigger
-                className="-ml-1"
-                onBeforeOpen={closeRightSidebar}
-              />
+              <LeftSidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-2 h-4" />
               <Breadcrumb>
                 <BreadcrumbList>

@@ -332,14 +332,7 @@ export default function PostsPage() {
     return posts.find((p) => p.id === activeId) || null;
   }, [activeId, posts]);
 
-  // Load posts
-  useEffect(() => {
-    if (activeProfile) {
-      loadPosts();
-    }
-  }, [activeProfile]);
-
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     if (!activeProfile) return;
 
     try {
@@ -352,7 +345,14 @@ export default function PostsPage() {
     } finally {
       setLoadingPosts(false);
     }
-  };
+  }, [activeProfile]);
+
+  // Load posts
+  useEffect(() => {
+    if (activeProfile) {
+      loadPosts();
+    }
+  }, [activeProfile, loadPosts]);
 
   // Navigate to post edit page
   const handleOpenPost = (post: Post) => {
