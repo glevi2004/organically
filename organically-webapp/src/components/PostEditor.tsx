@@ -1,44 +1,49 @@
-"use client"
+"use client";
 
-import { useEffect, useRef } from "react"
-import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
-import { Markdown } from "tiptap-markdown"
-import { Loader2, Check } from "lucide-react"
+import { useEffect, useRef } from "react";
+import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
+import { Markdown } from "tiptap-markdown";
+import { Loader2, Check } from "lucide-react";
 
 // --- Tiptap Core Extensions ---
-import { StarterKit } from "@tiptap/starter-kit"
-import { Image } from "@tiptap/extension-image"
-import { Typography } from "@tiptap/extension-typography"
+import { StarterKit } from "@tiptap/starter-kit";
+import { Image } from "@tiptap/extension-image";
+import { Typography } from "@tiptap/extension-typography";
 
 // --- Tiptap Node ---
-import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension"
-import "@/components/tiptap-node/image-node/image-node.scss"
-import "@/components/tiptap-node/list-node/list-node.scss"
-import "@/components/tiptap-node/paragraph-node/paragraph-node.scss"
+import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension";
+import "@/components/tiptap-node/image-node/image-node.scss";
+import "@/components/tiptap-node/list-node/list-node.scss";
+import "@/components/tiptap-node/paragraph-node/paragraph-node.scss";
 
 // --- Tiptap UI ---
-import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button"
-import { MarkButton } from "@/components/tiptap-ui/mark-button"
-import { ListDropdownMenu } from "@/components/tiptap-ui/list-dropdown-menu"
-import { LinkPopover } from "@/components/tiptap-ui/link-popover"
+import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button";
+import { MarkButton } from "@/components/tiptap-ui/mark-button";
+import { ListDropdownMenu } from "@/components/tiptap-ui/list-dropdown-menu";
+import { LinkPopover } from "@/components/tiptap-ui/link-popover";
 
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
+import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 
 // --- Styles ---
-import "./post-editor.scss"
+import "./post-editor.scss";
 
-export type SaveStatus = "idle" | "saving" | "saved"
+export type SaveStatus = "idle" | "saving" | "saved";
 
 interface PostEditorProps {
-  content: string
-  onChange: (content: string) => void
-  saveStatus?: SaveStatus
-  placeholder?: string
+  content: string;
+  onChange: (content: string) => void;
+  saveStatus?: SaveStatus;
+  placeholder?: string;
 }
 
-export function PostEditor({ content, onChange, saveStatus = "idle", placeholder }: PostEditorProps) {
-  const initialContentRef = useRef(content)
+export function PostEditor({
+  content,
+  onChange,
+  saveStatus = "idle",
+  placeholder,
+}: PostEditorProps) {
+  const initialContentRef = useRef(content);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -73,21 +78,26 @@ export function PostEditor({ content, onChange, saveStatus = "idle", placeholder
     ],
     content: initialContentRef.current,
     onUpdate: ({ editor }) => {
-      const markdown = editor.storage.markdown.getMarkdown()
-      onChange(markdown)
+      const storage = editor.storage as unknown as {
+        markdown: { getMarkdown: () => string };
+      };
+      onChange(storage.markdown.getMarkdown());
     },
-  })
+  });
 
   // Update content when it changes externally
   useEffect(() => {
     if (editor && content !== initialContentRef.current) {
-      const currentMarkdown = editor.storage.markdown?.getMarkdown() || ""
+      const storage = editor.storage as unknown as {
+        markdown?: { getMarkdown: () => string };
+      };
+      const currentMarkdown = storage.markdown?.getMarkdown() || "";
       if (content !== currentMarkdown) {
-        editor.commands.setContent(content)
-        initialContentRef.current = content
+        editor.commands.setContent(content);
+        initialContentRef.current = content;
       }
     }
-  }, [content, editor])
+  }, [content, editor]);
 
   return (
     <div className="post-editor-wrapper">
@@ -101,15 +111,15 @@ export function PostEditor({ content, onChange, saveStatus = "idle", placeholder
         <div className="post-editor-toolbar">
           <div className="post-editor-toolbar-left">
             <ImageUploadButton />
-            
+
             <div className="post-editor-separator" />
-            
+
             <MarkButton type="bold" />
             <MarkButton type="italic" />
             <MarkButton type="strike" />
-            
+
             <div className="post-editor-separator" />
-            
+
             <ListDropdownMenu types={["bulletList", "orderedList"]} />
             <LinkPopover />
           </div>
@@ -131,5 +141,5 @@ export function PostEditor({ content, onChange, saveStatus = "idle", placeholder
         </div>
       </EditorContext.Provider>
     </div>
-  )
+  );
 }
