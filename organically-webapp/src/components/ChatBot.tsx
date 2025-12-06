@@ -52,15 +52,16 @@ import {
   ToolOutput,
 } from "@/components/ai-elements/tool";
 import type { ToolUIPart } from "ai";
+import Image from "next/image";
 
 const models = [
   {
-    name: "GPT-4o Mini",
-    value: "openai/gpt-4o-mini",
+    name: "GPT-4o",
+    value: "gpt-4o",
   },
   {
-    name: "GPT-4o",
-    value: "openai/gpt-4o",
+    name: "GPT-5",
+    value: "gpt-5",
   },
 ];
 
@@ -165,6 +166,33 @@ export default function ChatBot() {
                                 </ReasoningContent>
                               </Reasoning>
                             );
+                          case "tool-generateImage":
+                            const { state, toolCallId } = part;
+
+                            if (state === "input-available") {
+                              return (
+                                <div key={`${message.id}-part-${i}`}>
+                                  Generating image...
+                                </div>
+                              );
+                            }
+
+                            if (state === "output-available") {
+                              const { input, output } = part as {
+                                input: { prompt: string };
+                                output: { base64Data: string };
+                              };
+                              return (
+                                <Image
+                                  key={toolCallId}
+                                  src={`data:image/png;base64,${output.base64Data}`}
+                                  alt={input.prompt}
+                                  height={400}
+                                  width={400}
+                                />
+                              );
+                            }
+                            return null;
                           case "source-url":
                             // Skip source-url parts here as they're rendered in Sources above
                             return null;
@@ -183,13 +211,7 @@ export default function ChatBot() {
                                   <ToolContent>
                                     <ToolInput input={genericToolPart.input} />
                                     <ToolOutput
-                                      output={
-                                        <MessageResponse>
-                                          {JSON.stringify(
-                                            genericToolPart.output
-                                          ).slice(0, 500)}
-                                        </MessageResponse>
-                                      }
+                                      output={genericToolPart.output}
                                       errorText={genericToolPart.errorText}
                                     />
                                   </ToolContent>
