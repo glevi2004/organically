@@ -1,21 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { PostModal } from "@/components/PostModal";
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,12 +14,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  createPost,
   getPostsByDateRange,
   updatePost,
   reorderPosts,
 } from "@/services/postService";
-import { Post, PostStatus, PostPlatform } from "@/types/post";
+import { Post, PostStatus } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/profile-constants";
 
@@ -260,22 +248,17 @@ function CalendarDay({
 export default function CalendarPage() {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [saving, setSaving] = useState(false);
+
+  // Modal state
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
-
-  // Form state
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [platform, setPlatform] = useState<PostPlatform>("instagram");
-  const [scheduledDate, setScheduledDate] = useState("");
 
   // DnD Sensors
   const sensors = useSensors(
@@ -323,45 +306,27 @@ export default function CalendarPage() {
     }
   }, [activeProfile, loadPosts]);
 
-  const handleAddPost = async () => {
-    if (
-      !title.trim() ||
-      !content.trim() ||
-      !scheduledDate ||
-      !activeProfile ||
-      !user
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
+  // Open modal for creating new post
+  const handleAddPost = () => {
+    setSelectedPost(null);
+    setShowModal(true);
+  };
 
-    try {
-      setSaving(true);
-      const post = await createPost({
-        profileId: activeProfile.id,
-        userId: user.uid,
-        title: title.trim(),
-        content: content.trim(),
-        platforms: [platform],
-        status: "draft",
-        scheduledDate: new Date(scheduledDate),
-      });
+  // Handle post creation from modal
+  const handlePostCreated = (newPost: Post) => {
+    setPosts((prev) => [...prev, newPost]);
+  };
 
-      setPosts((prev) => [...prev, post]);
-      toast.success("Post added!");
-      setShowAddDialog(false);
+  // Handle post update from modal
+  const handlePostUpdated = (updatedPost: Post) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+    );
+  };
 
-      // Reset form
-      setTitle("");
-      setContent("");
-      setPlatform("instagram");
-      setScheduledDate("");
-    } catch (error) {
-      console.error("Error adding post:", error);
-      toast.error("Failed to add post");
-    } finally {
-      setSaving(false);
-    }
+  // Handle post deletion from modal
+  const handlePostDeleted = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
   // Get weeks in current month
@@ -416,9 +381,10 @@ export default function CalendarPage() {
     return posts.find((p) => p.id === activeId) || null;
   }, [activeId, posts]);
 
-  // Navigate to post edit page
+  // Open post in modal for editing
   const handleOpenPost = (post: Post) => {
-    router.push(`/profile/${activeProfile?.id}/posts/${post.id}`);
+    setSelectedPost(post);
+    setShowModal(true);
   };
 
   // DnD Handlers
@@ -639,97 +605,23 @@ export default function CalendarPage() {
           </Button>
         </div>
 
-        <Button onClick={() => setShowAddDialog(true)}>
+        <Button onClick={handleAddPost}>
           <Plus className="w-4 h-4" />
           Add Post
         </Button>
       </div>
 
-      {/* Add Post Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Post</DialogTitle>
-            <DialogDescription>
-              Create a new content post for your calendar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Morning Routine Tips"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={saving}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="content">Content *</Label>
-              <Textarea
-                id="content"
-                placeholder="Write your post content..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={saving}
-                rows={6}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="platform">Platform *</Label>
-              <select
-                id="platform"
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value as PostPlatform)}
-                disabled={saving}
-                className="w-full p-2 border rounded-md bg-background"
-              >
-                {PLATFORMS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="scheduled-date">Scheduled Date *</Label>
-              <Input
-                id="scheduled-date"
-                type="datetime-local"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                disabled={saving}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowAddDialog(false);
-                setTitle("");
-                setContent("");
-                setPlatform("instagram" as PostPlatform);
-                setScheduledDate("");
-              }}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleAddPost} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Post"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Post Modal (Create/Edit) */}
+      <PostModal
+        post={selectedPost}
+        open={showModal}
+        onOpenChange={setShowModal}
+        onPostCreated={handlePostCreated}
+        onPostUpdated={handlePostUpdated}
+        onPostDeleted={handlePostDeleted}
+        profileId={activeProfile?.id || ""}
+        userId={user?.uid || ""}
+      />
 
       {/* Calendar Grid with DnD */}
       <DndContext

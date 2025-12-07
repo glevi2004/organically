@@ -1,9 +1,9 @@
 export const PLATFORMS = [
   { id: "instagram", name: "Instagram", logo: "/logos/instagram.svg" },
   { id: "tiktok", name: "TikTok", logo: "/logos/tiktok.svg" },
-  { id: "youtube", name: "YouTube", logo: "/logos/youtube.svg" },
+  // { id: "youtube", name: "YouTube", logo: "/logos/youtube.svg" },
   { id: "x", name: "X (Twitter)", logo: "/logos/x.svg" },
-  { id: "linkedin", name: "LinkedIn", logo: "/logos/linkedin.svg" },
+  // { id: "linkedin", name: "LinkedIn", logo: "/logos/linkedin.svg" },
 ];
 
 export const CONSISTENCY_LEVELS = [
@@ -99,4 +99,3 @@ export const NICHES = [
   { id: "education", label: "Education", icon: "📚" },
   { id: "entertainment", label: "Entertainment", icon: "🎬" },
 ];
-

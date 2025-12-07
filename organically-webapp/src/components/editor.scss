@@ -8,6 +8,11 @@
   background: var(--tt-bg-color, hsl(var(--background)));
 }
 
+.post-editor-wrapper.no-toolbar {
+  border: none;
+  border-radius: 0;
+}
+
 .post-editor-toolbar {
   position: sticky;
   top: 0;
@@ -17,6 +22,11 @@
   flex-wrap: wrap;
   gap: 0.25rem;
   padding: 0.5rem;
+}
+
+.post-editor-wrapper:has(.post-editor-toolbar[hidden]) {
+  border: none;
+  border-radius: 0;
 }
 
 .post-editor-content {

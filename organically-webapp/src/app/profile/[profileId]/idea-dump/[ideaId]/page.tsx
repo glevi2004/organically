@@ -64,36 +64,33 @@ export default function IdeaEditPage() {
   };
 
   // Debounced save
-  const debouncedSave = useCallback(
-    async (ideaToSave: Idea) => {
-      // Create a snapshot to compare
-      const snapshot = JSON.stringify({
+  const debouncedSave = useCallback(async (ideaToSave: Idea) => {
+    // Create a snapshot to compare
+    const snapshot = JSON.stringify({
+      title: ideaToSave.title,
+      content: ideaToSave.content,
+    });
+
+    // Skip if nothing changed since last save
+    if (snapshot === lastSavedRef.current) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await updateIdea(ideaToSave.id, {
         title: ideaToSave.title,
         content: ideaToSave.content,
       });
-
-      // Skip if nothing changed since last save
-      if (snapshot === lastSavedRef.current) {
-        return;
-      }
-
-      try {
-        setIsSaving(true);
-        await updateIdea(ideaToSave.id, {
-          title: ideaToSave.title,
-          content: ideaToSave.content,
-        });
-        lastSavedRef.current = snapshot;
-        setIdea(ideaToSave);
-      } catch (error) {
-        console.error("Error saving idea:", error);
-        toast.error("Failed to save idea");
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    []
-  );
+      lastSavedRef.current = snapshot;
+      setIdea(ideaToSave);
+    } catch (error) {
+      console.error("Error saving idea:", error);
+      toast.error("Failed to save idea");
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
 
   // Handle content change with debounce
   const handleContentChange = useCallback(
@@ -189,11 +186,12 @@ export default function IdeaEditPage() {
 
       <Separator className="my-6" />
 
-      {/* Content Editor */}
+      {/* Content Editor - Notion-style (no default toolbar) */}
       <Editor
         content={editedIdea.content}
         onChange={handleContentChange}
         placeholder="Describe your idea..."
+        showToolbar={false}
       />
 
       {/* Save indicator */}
@@ -206,4 +204,3 @@ export default function IdeaEditPage() {
     </div>
   );
 }
-

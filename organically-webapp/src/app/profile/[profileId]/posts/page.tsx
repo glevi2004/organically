@@ -1,47 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PostEditor } from "@/components/PostEditor";
+import { PostModal } from "@/components/PostModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Plus,
-  Loader2,
-  Calendar,
-  GripVertical,
-  CircleDot,
-  Globe,
-} from "lucide-react";
+import { Plus, Loader2, Calendar, GripVertical } from "lucide-react";
 import { toast } from "sonner";
-import {
-  createPost,
-  getPostsByProfile,
-  reorderPosts,
-} from "@/services/postService";
-import { Post, PostStatus, PostType, PostPlatform } from "@/types/post";
+import { getPostsByProfile, reorderPosts } from "@/services/postService";
+import { Post, PostStatus } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/profile-constants";
-import { POST_TYPES, getAllowedPlatformsForType } from "@/lib/post-constants";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 // DnD Kit imports
 import {
@@ -65,7 +35,6 @@ import {
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
 
 const statusOrder: PostStatus[] = ["idea", "draft", "ready", "posted"];
 
@@ -285,7 +254,6 @@ function KanbanColumn({
 export default function PostsPage() {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
 
@@ -293,18 +261,9 @@ export default function PostsPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
-  // Add post dialog state
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [title, setTitle] = useState("");
-  const [postContent, setPostContent] = useState("");
-  const [postType, setPostType] = useState<PostType | undefined>(undefined);
-  const [platforms, setPlatforms] = useState<PostPlatform[]>([]);
-  const [scheduledDate, setScheduledDate] = useState(() => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  });
+  // Modal state
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -354,52 +313,33 @@ export default function PostsPage() {
     }
   }, [activeProfile, loadPosts]);
 
-  // Navigate to post edit page
+  // Open post in modal for editing
   const handleOpenPost = (post: Post) => {
-    router.push(`/profile/${activeProfile?.id}/posts/${post.id}`);
+    setSelectedPost(post);
+    setShowModal(true);
   };
 
-  const handleAddPost = async () => {
-    if (!title.trim() || !postContent.trim() || !activeProfile || !user) {
-      toast.error("Please fill in both title and content");
-      return;
-    }
+  // Open modal for creating new post
+  const handleAddPost = () => {
+    setSelectedPost(null);
+    setShowModal(true);
+  };
 
-    if (platforms.length === 0) {
-      toast.error("Please select at least one platform");
-      return;
-    }
+  // Handle post creation from modal
+  const handlePostCreated = (newPost: Post) => {
+    setPosts((prev) => [newPost, ...prev]);
+  };
 
-    try {
-      setSaving(true);
-      const newPost = await createPost({
-        profileId: activeProfile.id,
-        userId: user.uid,
-        title: title.trim(),
-        content: postContent.trim(),
-        platforms: platforms,
-        type: postType,
-        status: "idea",
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
-      });
-      setPosts((prev) => [newPost, ...prev]);
-      toast.success("Post added!");
-      setShowAddDialog(false);
+  // Handle post update from modal
+  const handlePostUpdated = (updatedPost: Post) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+    );
+  };
 
-      // Reset form
-      setTitle("");
-      setPostContent("");
-      setPostType(undefined);
-      setPlatforms([]);
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      setScheduledDate(now.toISOString().slice(0, 16));
-    } catch (error) {
-      console.error("Error adding post:", error);
-      toast.error("Failed to add post");
-    } finally {
-      setSaving(false);
-    }
+  // Handle post deletion from modal
+  const handlePostDeleted = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
   // DnD Handlers
@@ -580,7 +520,7 @@ export default function PostsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-end">
-        <Button onClick={() => setShowAddDialog(true)}>
+        <Button onClick={handleAddPost}>
           <Plus className="w-4 h-4" />
           Add Post
         </Button>
@@ -614,205 +554,17 @@ export default function PostsPage() {
         </DragOverlay>
       </DndContext>
 
-      {/* Add Post Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Post</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            {/* Title - Large editable heading */}
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Untitled"
-              disabled={saving}
-              className="w-full text-3xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/30"
-            />
-
-            {/* Properties */}
-            <div className="space-y-3 py-4">
-              {/* Status - Always starts as Idea */}
-              <div className="flex items-center gap-4">
-                <span className="text-muted-foreground w-36 flex items-center gap-2">
-                  <CircleDot className="h-4 w-4" />
-                  Status
-                </span>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-base bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                  <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
-                  Idea
-                </div>
-              </div>
-
-              {/* Post Type */}
-              <div className="flex items-center gap-4">
-                <span className="text-muted-foreground w-36 flex items-center gap-2">
-                  <CircleDot className="h-4 w-4" />
-                  Type
-                </span>
-                <select
-                  value={postType || ""}
-                  onChange={(e) => {
-                    const newType = e.target.value as PostType | "";
-                    setPostType(newType || undefined);
-                    setPlatforms([]);
-                  }}
-                  disabled={saving}
-                  className="px-3 py-1.5 rounded-md text-base border border-border bg-background hover:bg-muted"
-                >
-                  <option value="">None</option>
-                  {POST_TYPES.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.label} - {type.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Platforms */}
-              <div className="flex items-center gap-4">
-                <span className="text-muted-foreground w-36 flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  Platforms *
-                </span>
-                <div className="flex-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start min-h-[40px] h-auto"
-                        disabled={saving}
-                      >
-                        {platforms.length === 0 ? (
-                          <span className="text-muted-foreground">
-                            Select platforms...
-                          </span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {platforms.map((platformId) => {
-                              const platform = PLATFORMS.find(
-                                (p) => p.id === platformId
-                              );
-                              return (
-                                <Badge
-                                  key={platformId}
-                                  variant="secondary"
-                                  className="flex items-center gap-1"
-                                >
-                                  {platform?.logo && (
-                                    <Image
-                                      src={platform.logo}
-                                      alt={platform.name}
-                                      width={12}
-                                      height={12}
-                                    />
-                                  )}
-                                  {platform?.name}
-                                </Badge>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-full">
-                      {PLATFORMS.filter((p) =>
-                        getAllowedPlatformsForType(postType).includes(
-                          p.id as PostPlatform
-                        )
-                      ).map((platform) => (
-                        <DropdownMenuCheckboxItem
-                          key={platform.id}
-                          checked={platforms.includes(
-                            platform.id as PostPlatform
-                          )}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setPlatforms([
-                                ...platforms,
-                                platform.id as PostPlatform,
-                              ]);
-                            } else {
-                              setPlatforms(
-                                platforms.filter((p) => p !== platform.id)
-                              );
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            {platform.logo && (
-                              <Image
-                                src={platform.logo}
-                                alt={platform.name}
-                                width={16}
-                                height={16}
-                              />
-                            )}
-                            {platform.name}
-                          </div>
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-
-              {/* Scheduled Date */}
-              <div className="flex items-center gap-4">
-                <span className="text-muted-foreground w-36 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Scheduled
-                </span>
-                <Input
-                  type="datetime-local"
-                  value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                  disabled={saving}
-                  className="w-auto border-none bg-transparent hover:bg-muted px-2 h-9"
-                />
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            {/* Content Editor */}
-            <PostEditor
-              content={postContent}
-              onChange={(content) => setPostContent(content)}
-              placeholder="What's happening?"
-            />
-          </div>
-          <DialogFooter className="mt-6">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowAddDialog(false);
-                setTitle("");
-                setPostContent("");
-                setPostType(undefined);
-                setPlatforms([]);
-                const now = new Date();
-                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-                setScheduledDate(now.toISOString().slice(0, 16));
-              }}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleAddPost} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Post"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Post Modal (Create/Edit) */}
+      <PostModal
+        post={selectedPost}
+        open={showModal}
+        onOpenChange={setShowModal}
+        onPostCreated={handlePostCreated}
+        onPostUpdated={handlePostUpdated}
+        onPostDeleted={handlePostDeleted}
+        profileId={activeProfile?.id || ""}
+        userId={user?.uid || ""}
+      />
     </div>
   );
 }

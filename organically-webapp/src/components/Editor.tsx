@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
 import { Markdown } from "tiptap-markdown";
+import { FloatingElement } from "@/components/tiptap-ui-utils/floating-element";
+import { toast } from "sonner";
+import { shift, flip, offset } from "@floating-ui/react";
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit";
@@ -52,6 +55,7 @@ import {
   LinkButton,
 } from "@/components/tiptap-ui/link-popover";
 import { MarkButton } from "@/components/tiptap-ui/mark-button";
+import { TextAlignDropdownMenu } from "@/components/tiptap-ui/text-align-dropdown-menu";
 import { TextAlignButton } from "@/components/tiptap-ui/text-align-button";
 import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button";
 
@@ -74,6 +78,7 @@ interface EditorProps {
   onChange: (content: string) => void;
   onBlur?: () => void;
   placeholder?: string;
+  showToolbar?: boolean; // Option to show/hide default toolbar (default: false for Notion-style)
 }
 
 const MainToolbarContent = ({
@@ -181,6 +186,7 @@ export function Editor({
   onChange,
   onBlur,
   placeholder,
+  showToolbar = false, // Default to Notion-style (no toolbar)
 }: EditorProps) {
   const isMobile = useIsBreakpoint();
   const [mobileView, setMobileView] = useState<"main" | "highlighter" | "link">(
@@ -264,28 +270,70 @@ export function Editor({
   }, [content, editor]);
 
   return (
-    <div className="post-editor-wrapper">
+    <div className={`post-editor-wrapper ${!showToolbar ? "no-toolbar" : ""}`}>
       <EditorContext.Provider value={{ editor }}>
-        <Toolbar ref={toolbarRef} className="post-editor-toolbar">
-          {mobileView === "main" ? (
-            <MainToolbarContent
-              onHighlighterClick={() => setMobileView("highlighter")}
-              onLinkClick={() => setMobileView("link")}
-              isMobile={isMobile}
-            />
-          ) : (
-            <MobileToolbarContent
-              type={mobileView === "highlighter" ? "highlighter" : "link"}
-              onBack={() => setMobileView("main")}
-            />
-          )}
-        </Toolbar>
+        {/* Only show default toolbar if showToolbar is true */}
+        {showToolbar && (
+          <Toolbar ref={toolbarRef} className="post-editor-toolbar">
+            {mobileView === "main" ? (
+              <MainToolbarContent
+                onHighlighterClick={() => setMobileView("highlighter")}
+                onLinkClick={() => setMobileView("link")}
+                isMobile={isMobile}
+              />
+            ) : (
+              <MobileToolbarContent
+                type={mobileView === "highlighter" ? "highlighter" : "link"}
+                onBack={() => setMobileView("main")}
+              />
+            )}
+          </Toolbar>
+        )}
 
         <EditorContent
           editor={editor}
           role="presentation"
           className="post-editor-content"
         />
+
+        {/* Floating toolbar (Notion-style) */}
+        {editor && (
+          <FloatingElement
+            editor={editor}
+            floatingOptions={{
+              placement: "top",
+              middleware: [offset(10), flip(), shift({ padding: 8 })],
+            }}
+            zIndex={9999}
+          >
+            <div className="border rounded-lg shadow-lg bg-background">
+              <div className="p-1">
+                <Toolbar className="border-none shadow-none bg-transparent">
+                  <ToolbarGroup>
+                    <UndoRedoButton action="undo" />
+                    <UndoRedoButton action="redo" />
+                  </ToolbarGroup>
+
+                  <ToolbarGroup>
+                    <HeadingDropdownMenu levels={[1, 2, 3]} />
+                  </ToolbarGroup>
+
+                  <ToolbarGroup>
+                    <MarkButton type="bold" />
+                    <ColorHighlightPopover />
+                    <LinkPopover />
+                  </ToolbarGroup>
+
+                  <ToolbarGroup>
+                    <TextAlignDropdownMenu
+                      aligns={["left", "center", "right"]}
+                    />
+                  </ToolbarGroup>
+                </Toolbar>
+              </div>
+            </div>
+          </FloatingElement>
+        )}
       </EditorContext.Provider>
     </div>
   );

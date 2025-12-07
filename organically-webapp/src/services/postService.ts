@@ -42,22 +42,45 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
 
     const post: Post = {
       id: postId,
-      ...input,
+      profileId: input.profileId,
+      userId: input.userId,
+      title: input.title,
+      content: input.content,
+      platforms: input.platforms,
       status: input.status || "idea",
       order,
       createdAt: now,
       updatedAt: now,
+      ...(input.type && { type: input.type }),
+      ...(input.scheduledDate && { scheduledDate: input.scheduledDate }),
+      ...(input.hooks && { hooks: input.hooks }),
+      ...(input.hashtags && { hashtags: input.hashtags }),
     };
 
-    await setDoc(doc(db, POSTS_COLLECTION, postId), {
-      ...post,
+    // Build Firestore document, filtering out undefined values
+    const firestoreDoc: Record<string, any> = {
+      id: post.id,
+      profileId: post.profileId,
+      userId: post.userId,
+      title: post.title,
+      content: post.content,
+      platforms: post.platforms,
+      status: post.status,
+      order: post.order,
       createdAt: Timestamp.fromDate(post.createdAt),
       updatedAt: Timestamp.fromDate(post.updatedAt),
       scheduledDate: post.scheduledDate
         ? Timestamp.fromDate(post.scheduledDate)
         : null,
-      postedDate: post.postedDate ? Timestamp.fromDate(post.postedDate) : null,
-    });
+      postedDate: null,
+    };
+
+    // Only add optional fields if they have values
+    if (post.type) firestoreDoc.type = post.type;
+    if (post.hooks) firestoreDoc.hooks = post.hooks;
+    if (post.hashtags) firestoreDoc.hashtags = post.hashtags;
+
+    await setDoc(doc(db, POSTS_COLLECTION, postId), firestoreDoc);
 
     return post;
   } catch (error) {

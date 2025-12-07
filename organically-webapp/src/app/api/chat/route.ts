@@ -70,16 +70,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: getModel(model, webSearch),
     messages: convertToModelMessages(messages),
-    system: `You are a helpful assistant. Always format your responses using proper Markdown syntax:
-- Use code blocks with language tags for code (e.g., \`\`\`python, \`\`\`javascript, \`\`\`typescript)
-- Use **bold** for emphasis and *italic* for lighter emphasis
-- Use headers (# ## ###) to structure your responses
-- Use lists (- or 1.) for items
-- Use tables with proper formatting when presenting tabular data
-- Use > for blockquotes
-- Use \`inline code\` for short code snippets, variable names, or technical terms
-
-Always wrap code examples in proper code blocks with the appropriate language specified.`,
+    system: `You are a helpful assistant. Always format your responses using proper Markdown syntax.`,
     providerOptions: {
       openai: {
         reasoningEffort: "medium",

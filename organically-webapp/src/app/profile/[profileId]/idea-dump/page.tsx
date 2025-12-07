@@ -75,38 +75,45 @@ function SortableIdeaCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "p-4 border rounded-lg bg-background group",
+        "aspect-square p-5 bg-gradient-to-br from-white to-yellow-50/40 group relative",
+        "shadow-[2px_2px_8px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.08)]",
+        "hover:shadow-[3px_3px_12px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1)]",
+        "transition-all duration-200",
+        "before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:to-black/[0.015]",
         isDragging && !isDragOverlay && "opacity-50",
-        isDragOverlay && "shadow-lg ring-2 ring-primary"
+        isDragOverlay && "shadow-[4px_4px_16px_rgba(0,0,0,0.2)] ring-2 ring-yellow-400/50 rotate-2"
       )}
     >
-      <div className="flex items-start gap-3">
-        {/* Card Content - Clickable */}
-        <div
-          className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={onClick}
-        >
-          <h3 className="font-semibold line-clamp-1">{idea.title}</h3>
-          {idea.content && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-              {idea.content}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
-            <Calendar className="w-3 h-3" />
-            {new Date(idea.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-
-        {/* Drag Handle */}
+      <div className="flex flex-col h-full relative">
+        {/* Drag Handle - Top Right */}
         <button
           {...attributes}
           {...listeners}
-          className="mt-0.5 p-1 -mr-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+          className="absolute -top-2 -right-2 p-1.5 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
           onClick={(e) => e.stopPropagation()}
         >
           <GripVertical className="w-4 h-4" />
         </button>
+
+        {/* Card Content - Clickable */}
+        <div
+          className="flex-1 cursor-pointer hover:opacity-80 transition-opacity flex flex-col"
+          onClick={onClick}
+        >
+          <h3 className="font-semibold line-clamp-2 text-gray-900 mb-2">{idea.title}</h3>
+          {idea.content && (
+            <p className="text-sm text-gray-600 line-clamp-3 flex-1">
+              {idea.content}
+            </p>
+          )}
+          <p className="text-xs text-gray-500 flex items-center gap-1 mt-auto pt-3">
+            <Calendar className="w-3 h-3" />
+            {new Date(idea.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -115,22 +122,26 @@ function SortableIdeaCard({
 // Idea Card for Drag Overlay (non-sortable version)
 function IdeaCardOverlay({ idea }: { idea: Idea }) {
   return (
-    <div className="p-4 border rounded-lg bg-background shadow-lg ring-2 ring-primary">
-      <div className="flex items-start gap-3">
-        <div className="flex-1">
-          <h3 className="font-semibold line-clamp-1">{idea.title}</h3>
+    <div className="aspect-square p-5 bg-gradient-to-br from-white to-yellow-50/40 shadow-[4px_4px_16px_rgba(0,0,0,0.2)] ring-2 ring-yellow-400/50 rotate-2 relative before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:to-black/[0.015]">
+      <div className="flex flex-col h-full relative">
+        <div className="absolute -top-2 -right-2 p-1.5 text-gray-400">
+          <GripVertical className="w-4 h-4" />
+        </div>
+
+        <div className="flex-1 flex flex-col">
+          <h3 className="font-semibold line-clamp-2 text-gray-900 mb-2">{idea.title}</h3>
           {idea.content && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+            <p className="text-sm text-gray-600 line-clamp-3 flex-1">
               {idea.content}
             </p>
           )}
-          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
+          <p className="text-xs text-gray-500 flex items-center gap-1 mt-auto pt-3">
             <Calendar className="w-3 h-3" />
-            {new Date(idea.createdAt).toLocaleDateString()}
+            {new Date(idea.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
           </p>
-        </div>
-        <div className="mt-0.5 p-1 -mr-1 text-muted-foreground">
-          <GripVertical className="w-4 h-4" />
         </div>
       </div>
     </div>
@@ -298,7 +309,7 @@ export default function IdeaDumpPage() {
         </Button>
       </div>
 
-      {/* Ideas List with DnD */}
+      {/* Ideas Grid with DnD */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -306,23 +317,23 @@ export default function IdeaDumpPage() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="space-y-3">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : sortedIdeas.length === 0 ? (
-            <div className="text-center py-12 border rounded-lg bg-muted/20">
-              <Lightbulb className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                No ideas yet. Click "Add Idea" to get started!
-              </p>
-            </div>
-          ) : (
-            <SortableContext
-              items={sortedIdeas.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : sortedIdeas.length === 0 ? (
+          <div className="text-center py-12 border rounded-lg bg-muted/20">
+            <Lightbulb className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">
+              No ideas yet. Click "Add Idea" to get started!
+            </p>
+          </div>
+        ) : (
+          <SortableContext
+            items={sortedIdeas.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {sortedIdeas.map((idea) => (
                 <SortableIdeaCard
                   key={idea.id}
@@ -330,9 +341,9 @@ export default function IdeaDumpPage() {
                   onClick={() => handleOpenIdea(idea)}
                 />
               ))}
-            </SortableContext>
-          )}
-        </div>
+            </div>
+          </SortableContext>
+        )}
 
         {/* Drag Overlay */}
         <DragOverlay>
@@ -359,11 +370,12 @@ export default function IdeaDumpPage() {
 
             <Separator className="my-6" />
 
-            {/* Content Editor */}
+            {/* Content Editor - Notion-style (no default toolbar) */}
             <Editor
               content={content}
               onChange={setContent}
               placeholder="Describe your idea..."
+              showToolbar={false}
             />
           </div>
           <DialogFooter>
