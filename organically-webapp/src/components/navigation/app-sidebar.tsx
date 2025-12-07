@@ -49,6 +49,7 @@ import {
   FileEdit,
   Globe,
   PanelLeftIcon,
+  AudioWaveform,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -119,6 +120,11 @@ const getNavMain = (organizationId: string) => [
     title: "Home",
     url: `/organization/${organizationId}/home`,
     icon: Home,
+  },
+  {
+    title: "Automations",
+    url: `/organization/${organizationId}/automations`,
+    icon: AudioWaveform,
   },
   {
     title: "Idea Dump",

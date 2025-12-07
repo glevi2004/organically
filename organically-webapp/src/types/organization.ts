@@ -1,34 +1,24 @@
 import { Timestamp } from "firebase/firestore";
 
-// Channel provider types - Instagram only
+// Channel provider type - Instagram only
 export type ChannelProvider = "instagram";
 
-// Base channel interface - all channels have these fields
-export interface BaseChannel {
-  id: string; // Unique channel ID (generated)
+// Channel interface for Instagram
+export interface Channel {
+  id: string;
   provider: ChannelProvider;
-  label?: string; // User-defined label (e.g., "Personal", "Business")
-  connectedAt: number;
-  isActive: boolean; // For enabling/disabling without deletion
-}
-
-// Instagram-specific channel data
-export interface InstagramChannel extends BaseChannel {
-  provider: "instagram";
+  providerAccountId: string;
+  accountName: string;
+  accountType?: string; // 'PERSONAL', 'CREATOR', 'BUSINESS'
   accessToken: string; // Encrypted
-  providerAccountId: string; // Instagram Business Account ID
-  facebookPageId: string;
-  username: string;
-  displayName?: string | null;
+  tokenExpiresAt?: Date | Timestamp | number;
+  isActive: boolean;
+  connectedAt: Date | Timestamp | number;
+  label?: string;
   profileImageUrl?: string | null;
-  expiresAt: number;
 }
-
-// Union type for all channels (Instagram only for now)
-export type Channel = InstagramChannel;
 
 // Helper type for creating new channels (without id, which is generated)
-export type NewInstagramChannel = Omit<InstagramChannel, "id">;
 export type NewChannel = Omit<Channel, "id">;
 
 export interface Organization {
@@ -41,34 +31,28 @@ export interface Organization {
 
   // Onboarding completion tracking
   onboardingCompleted: boolean;
-  onboardingStep: number; // Track progress (0-1)
+  onboardingStep: number;
 
   // Content Generation Fields
-  description?: string; // Brand/personal description (200-500 chars)
-  brandVoice?: string; // Voice/Tone description (200-500 chars)
-  valuesMission?: string; // Values/Mission description (200-500 chars)
+  description?: string;
+  brandVoice?: string;
+  valuesMission?: string;
 
-  // Connected social media channels (Instagram only)
+  // Connected Instagram channels
   channels?: Channel[];
 }
 
-// Utility function to get channels by provider
-export function getChannelsByProvider<T extends Channel>(
-  channels: Channel[] | undefined,
-  provider: T["provider"]
-): T[] {
+// Utility function to get Instagram channels
+export function getInstagramChannels(channels: Channel[] | undefined): Channel[] {
   if (!channels) return [];
-  return channels.filter((c) => c.provider === provider) as T[];
+  return channels.filter((c) => c.provider === "instagram");
 }
 
 // Utility function to find a channel by provider account ID
 export function findChannelByProviderId(
   channels: Channel[] | undefined,
-  provider: ChannelProvider,
   providerAccountId: string
 ): Channel | undefined {
   if (!channels) return undefined;
-  return channels.find(
-    (c) => c.provider === provider && c.providerAccountId === providerAccountId
-  );
+  return channels.find((c) => c.providerAccountId === providerAccountId);
 }
