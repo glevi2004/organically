@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
-import { updateProfile } from "@/services/profileService";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  updateProfile,
+  disconnectSocialAccount,
+} from "@/services/profileService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -14,76 +19,90 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check } from "lucide-react";
+import { ExternalLink, Unlink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
-const PLATFORMS = [
-  { id: "instagram", name: "Instagram", icon: "📸" },
-  { id: "tiktok", name: "TikTok", icon: "🎵" },
-  { id: "youtube", name: "YouTube", icon: "▶️" },
-  { id: "x", name: "X (Twitter)", icon: "✖️" },
-  { id: "linkedin", name: "LinkedIn", icon: "💼" },
-  { id: "threads", name: "Threads", icon: "🧵" },
-];
-
-const CONSISTENCY_LEVELS = [
-  { id: "casual", label: "Casual Cruiser (~3 posts/week)" },
-  { id: "steady", label: "Steady Grinder (1-2 posts/day)" },
-  { id: "aggressive", label: "Algorithm Soldier (3-6 posts/day)" },
-];
-
-const AGE_RANGES = [
-  { id: "gen_z", label: "Gen Z (13–28)" },
-  { id: "millennials", label: "Millennials (29–44)" },
-  { id: "gen_x", label: "Gen X (45–60)" },
-  { id: "boomers", label: "Boomers (61–79)" },
-];
-
-const GENDERS = [
-  { id: "all", label: "All genders" },
-  { id: "male", label: "Male" },
-  { id: "female", label: "Female" },
-  { id: "other", label: "Other" },
-];
-
-const CONTENT_TYPES = [
-  { id: "short_form_video", label: "Short-form video" },
-  { id: "long_form_video", label: "Long-form video" },
-  { id: "stories", label: "Stories" },
-  { id: "carousels", label: "Carousels" },
-  { id: "text_posts", label: "Text posts / Threads" },
-  { id: "podcasts", label: "Podcasts" },
-];
+import { TwitterConnection } from "@/types/profile";
 
 export default function SettingsPage() {
   const { activeProfile, refreshProfiles } = useProfile();
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [saving, setSaving] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   // General settings
   const [name, setName] = useState(activeProfile?.name || "");
 
-  // Platforms
-  const [platforms, setPlatforms] = useState<string[]>(
-    activeProfile?.platforms || []
-  );
+  // Handle OAuth callback messages
+  useEffect(() => {
+    const twitterStatus = searchParams.get("twitter");
+    const error = searchParams.get("error");
 
-  // Consistency
-  const [consistencyLevel, setConsistencyLevel] = useState(
-    activeProfile?.consistencyLevel || ""
-  );
+    const handleTwitterPending = async () => {
+      if (twitterStatus === "pending" && activeProfile) {
+        // Read the Twitter data from cookie
+        const cookieValue = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("twitter_connection_data="));
 
-  // Audience
-  const [ageRanges, setAgeRanges] = useState<string[]>(
-    activeProfile?.targetAudience?.ageRanges || []
-  );
-  const [genders, setGenders] = useState<string[]>(
-    activeProfile?.targetAudience?.genders || []
-  );
+        if (cookieValue) {
+          try {
+            const twitterData = JSON.parse(
+              decodeURIComponent(cookieValue.split("=")[1])
+            );
 
-  // Content Types
-  const [contentTypes, setContentTypes] = useState<string[]>(
-    activeProfile?.contentTypes || []
-  );
+            // Save to Firestore using client SDK (user is authenticated)
+            await updateProfile(activeProfile.id, {
+              socialConnections: {
+                ...activeProfile.socialConnections,
+                twitter: twitterData,
+              },
+            } as any);
+
+            // Delete the cookie
+            document.cookie =
+              "twitter_connection_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+            // Refresh and show success
+            await refreshProfiles();
+            toast.success("X (Twitter) account connected successfully!");
+          } catch (err) {
+            console.error("Error saving Twitter connection:", err);
+            toast.error("Failed to save X connection");
+          }
+        }
+
+        // Clean up URL
+        window.history.replaceState({}, "", window.location.pathname);
+      } else if (twitterStatus === "connected") {
+        toast.success("X (Twitter) account connected successfully!");
+        window.history.replaceState({}, "", window.location.pathname);
+        refreshProfiles();
+      } else if (error) {
+        const errorMessages: Record<string, string> = {
+          twitter_denied: "X authorization was denied",
+          twitter_missing_params: "Missing authorization parameters",
+          twitter_session_expired: "Session expired, please try again",
+          twitter_missing_profile: "Profile not found",
+          twitter_missing_user: "User authentication required",
+          twitter_csrf_error: "Security validation failed, please try again",
+          twitter_unauthorized:
+            "You don't have permission to connect this profile",
+          twitter_profile_not_found: "Profile not found",
+          twitter_callback_failed: "Failed to connect X account",
+        };
+        toast.error(errorMessages[error] || "An error occurred");
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    };
+
+    handleTwitterPending();
+  }, [searchParams, refreshProfiles, activeProfile]);
+
+  // Get Twitter connection status
+  const twitterConnection = activeProfile?.socialConnections?.twitter as
+    | TwitterConnection
+    | undefined;
 
   const handleSaveGeneral = async () => {
     if (!activeProfile || !name.trim()) {
@@ -104,86 +123,34 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSavePlatforms = async () => {
-    if (!activeProfile) return;
-
-    setSaving(true);
-    try {
-      await updateProfile(activeProfile.id, { platforms });
-      await refreshProfiles();
-      toast.success("Platforms updated successfully!");
-    } catch (error) {
-      console.error("Error updating platforms:", error);
-      toast.error("Failed to update platforms");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveConsistency = async () => {
-    if (!activeProfile || !consistencyLevel) {
-      toast.error("Please select a consistency level");
+  // Connect to X (Twitter)
+  const handleConnectTwitter = () => {
+    if (!activeProfile) {
+      toast.error("No active profile");
       return;
     }
-
-    setSaving(true);
-    try {
-      await updateProfile(activeProfile.id, {
-        consistencyLevel: consistencyLevel as any,
-      });
-      await refreshProfiles();
-      toast.success("Consistency level updated successfully!");
-    } catch (error) {
-      console.error("Error updating consistency:", error);
-      toast.error("Failed to update consistency");
-    } finally {
-      setSaving(false);
+    if (!user) {
+      toast.error("Not authenticated");
+      return;
     }
+    // Redirect to OAuth flow with profileId and userId for ownership validation
+    window.location.href = `/api/auth/twitter?profileId=${activeProfile.id}&userId=${user.uid}`;
   };
 
-  const handleSaveAudience = async () => {
+  // Disconnect Twitter
+  const handleDisconnectTwitter = async () => {
     if (!activeProfile) return;
 
-    setSaving(true);
+    setDisconnecting(true);
     try {
-      await updateProfile(activeProfile.id, {
-        targetAudience: { ageRanges, genders },
-      });
+      await disconnectSocialAccount(activeProfile.id, "twitter");
       await refreshProfiles();
-      toast.success("Audience updated successfully!");
+      toast.success("X (Twitter) account disconnected");
     } catch (error) {
-      console.error("Error updating audience:", error);
-      toast.error("Failed to update audience");
+      console.error("Error disconnecting Twitter:", error);
+      toast.error("Failed to disconnect X account");
     } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveContentTypes = async () => {
-    if (!activeProfile) return;
-
-    setSaving(true);
-    try {
-      await updateProfile(activeProfile.id, { contentTypes });
-      await refreshProfiles();
-      toast.success("Content types updated successfully!");
-    } catch (error) {
-      console.error("Error updating content types:", error);
-      toast.error("Failed to update content types");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleItem = (
-    items: string[],
-    item: string,
-    setItems: (items: string[]) => void
-  ) => {
-    if (items.includes(item)) {
-      setItems(items.filter((i) => i !== item));
-    } else {
-      setItems([...items, item]);
+      setDisconnecting(false);
     }
   };
 
@@ -192,17 +159,14 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground mt-2">
-          Manage your profile settings and preferences
+          Manage your profile settings and integrations
         </p>
       </div>
 
       <Tabs defaultValue="general" className="w-full">
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="platforms">Platforms</TabsTrigger>
-          <TabsTrigger value="consistency">Consistency</TabsTrigger>
-          <TabsTrigger value="audience">Audience</TabsTrigger>
-          <TabsTrigger value="content">Content Types</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
 
         {/* General Tab */}
@@ -234,223 +198,133 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Platforms Tab */}
-        <TabsContent value="platforms" className="space-y-4">
+        {/* Integrations Tab */}
+        <TabsContent value="integrations" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Platforms</CardTitle>
+              <CardTitle>Social Media Integrations</CardTitle>
               <CardDescription>
-                Select the platforms you want to grow on
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {PLATFORMS.map((platform) => (
-                  <button
-                    key={platform.id}
-                    type="button"
-                    onClick={() =>
-                      toggleItem(platforms, platform.id, setPlatforms)
-                    }
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      platforms.includes(platform.id)
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : "border-border hover:border-emerald-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{platform.icon}</span>
-                      <span className="font-medium">{platform.name}</span>
-                      {platforms.includes(platform.id) && (
-                        <Check className="ml-auto w-5 h-5 text-emerald-500" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <Button
-                onClick={handleSavePlatforms}
-                disabled={saving}
-                className="bg-gradient-to-r from-green-600 via-emerald-500 to-teal-600 text-white"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Consistency Tab */}
-        <TabsContent value="consistency" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Consistency Level</CardTitle>
-              <CardDescription>How often do you want to post?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                {CONSISTENCY_LEVELS.map((level) => (
-                  <button
-                    key={level.id}
-                    type="button"
-                    onClick={() => setConsistencyLevel(level.id)}
-                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                      consistencyLevel === level.id
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : "border-border hover:border-emerald-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{level.label}</span>
-                      {consistencyLevel === level.id && (
-                        <Check className="w-5 h-5 text-emerald-500" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <Button
-                onClick={handleSaveConsistency}
-                disabled={saving}
-                className="bg-gradient-to-r from-green-600 via-emerald-500 to-teal-600 text-white"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Audience Tab */}
-        <TabsContent value="audience" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Target Audience</CardTitle>
-              <CardDescription>
-                Define who you're creating content for
+                Connect your social media accounts to enable automated posting
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">Age Ranges</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {AGE_RANGES.map((age) => (
-                    <button
-                      key={age.id}
-                      type="button"
-                      onClick={() =>
-                        toggleItem(ageRanges, age.id, setAgeRanges)
-                      }
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        ageRanges.includes(age.id)
-                          ? "border-emerald-500 bg-emerald-500/10"
-                          : "border-border hover:border-emerald-300"
-                      }`}
+              {/* X (Twitter) Integration */}
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-border">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-black dark:bg-white">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="w-6 h-6 text-white dark:text-black"
+                      fill="currentColor"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{age.label}</span>
-                        {ageRanges.includes(age.id) && (
-                          <Check className="w-4 h-4 text-emerald-500" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">Genders</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {GENDERS.map((gender) => (
-                    <button
-                      key={gender.id}
-                      type="button"
-                      onClick={() => {
-                        if (gender.id === "all") {
-                          setGenders(genders.includes("all") ? [] : ["all"]);
-                        } else {
-                          let newGenders = genders.filter((g) => g !== "all");
-                          if (newGenders.includes(gender.id)) {
-                            newGenders = newGenders.filter(
-                              (g) => g !== gender.id
-                            );
-                          } else {
-                            newGenders = [...newGenders, gender.id];
-                          }
-                          setGenders(newGenders);
-                        }
-                      }}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        genders.includes(gender.id)
-                          ? "border-emerald-500 bg-emerald-500/10"
-                          : "border-border hover:border-emerald-300"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">
-                          {gender.label}
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">X (Twitter)</h3>
+                    {twitterConnection ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          Connected as @{twitterConnection.screenName}
                         </span>
-                        {genders.includes(gender.id) && (
-                          <Check className="w-4 h-4 text-emerald-500" />
+                        {twitterConnection.name && (
+                          <span className="text-muted-foreground/60">
+                            ({twitterConnection.name})
+                          </span>
                         )}
                       </div>
-                    </button>
-                  ))}
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Post tweets automatically from your scheduled content
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {twitterConnection ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          window.open(
+                            `https://x.com/${twitterConnection.screenName}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        <ExternalLink className="w-4 h-4 mr-1" />
+                        View Profile
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDisconnectTwitter}
+                        disabled={disconnecting}
+                      >
+                        {disconnecting ? (
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <Unlink className="w-4 h-4 mr-1" />
+                        )}
+                        Disconnect
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={handleConnectTwitter}
+                      className="bg-black hover:bg-black/90 dark:bg-white dark:hover:bg-white/90 dark:text-black"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="w-4 h-4 mr-2"
+                        fill="currentColor"
+                      >
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
+                      Connect X Account
+                    </Button>
+                  )}
                 </div>
               </div>
 
-              <Button
-                onClick={handleSaveAudience}
-                disabled={saving}
-                className="bg-gradient-to-r from-green-600 via-emerald-500 to-teal-600 text-white"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Content Types Tab */}
-        <TabsContent value="content" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Content Types</CardTitle>
-              <CardDescription>
-                Select the types of content you create
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {CONTENT_TYPES.map((type) => (
-                  <button
-                    key={type.id}
-                    type="button"
-                    onClick={() =>
-                      toggleItem(contentTypes, type.id, setContentTypes)
-                    }
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      contentTypes.includes(type.id)
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : "border-border hover:border-emerald-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{type.label}</span>
-                      {contentTypes.includes(type.id) && (
-                        <Check className="w-4 h-4 text-emerald-500" />
-                      )}
-                    </div>
-                  </button>
-                ))}
+              {/* Instagram Integration (Coming Soon) */}
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-border opacity-60">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400">
+                    <span className="text-2xl">📸</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Instagram</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Coming soon - Post to Instagram Business accounts
+                    </p>
+                  </div>
+                </div>
+                <Button disabled variant="outline">
+                  Coming Soon
+                </Button>
               </div>
 
-              <Button
-                onClick={handleSaveContentTypes}
-                disabled={saving}
-                className="bg-gradient-to-r from-green-600 via-emerald-500 to-teal-600 text-white"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
+              {/* TikTok Integration (Coming Soon) */}
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-border opacity-60">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-black">
+                    <span className="text-2xl">🎵</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">TikTok</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Coming soon - Publish videos to TikTok
+                    </p>
+                  </div>
+                </div>
+                <Button disabled variant="outline">
+                  Coming Soon
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
