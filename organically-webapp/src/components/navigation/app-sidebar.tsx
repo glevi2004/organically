@@ -154,16 +154,6 @@ const getNavMain = (profileId: string) => [
     title: "Settings",
     url: `/profile/${profileId}/settings`,
     icon: Settings,
-    items: [
-      {
-        title: "General",
-        url: `/profile/${profileId}/settings`,
-      },
-      {
-        title: "Platforms",
-        url: `/profile/${profileId}/settings`,
-      },
-    ],
   },
 ];
 
