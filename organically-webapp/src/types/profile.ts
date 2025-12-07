@@ -1,5 +1,36 @@
 import { Timestamp } from "firebase/firestore";
 
+// Social media connection types
+export interface TwitterConnection {
+  accessToken: string;
+  accessTokenSecret: string;
+  userId: string;
+  screenName: string;
+  name?: string | null;
+  profileImageUrl?: string | null;
+  connectedAt: number;
+}
+
+export interface InstagramConnection {
+  accessToken: string;
+  instagramBusinessId: string;
+  facebookPageId: string;
+  expiresAt: number;
+}
+
+export interface TikTokConnection {
+  accessToken: string;
+  refreshToken: string;
+  openId: string;
+  expiresAt: number;
+}
+
+export interface SocialConnections {
+  twitter?: TwitterConnection;
+  instagram?: InstagramConnection;
+  tiktok?: TikTokConnection;
+}
+
 export interface Profile {
   id: string;
   name: string;
@@ -32,4 +63,7 @@ export interface Profile {
   niche?: string[]; // Multi-select categories ['fitness', 'tech', 'lifestyle', 'business', 'education', 'entertainment']
   brandVoice?: string; // Voice/Tone description (200-500 chars)
   valuesMission?: string; // Values/Mission description (200-500 chars)
+
+  // Social media connections for automated posting
+  socialConnections?: SocialConnections;
 }
