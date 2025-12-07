@@ -11,7 +11,7 @@ import {
 } from "@/types/automation";
 import { AutomationBuilder } from "@/components/automations/AutomationBuilder";
 import { Button } from "@/components/ui/button";
-import { Zap, Check, Loader2 } from "lucide-react";
+import { Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -46,25 +46,7 @@ const loadAutomation = async (id: string): Promise<Automation | null> => {
   };
 };
 
-// Header action components to avoid re-creating on every render
-function SaveStatus({ saving }: { saving: boolean }) {
-  return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      {saving ? (
-        <>
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Saving...</span>
-        </>
-      ) : (
-        <>
-          <Check className="w-4 h-4 text-green-500" />
-          <span>All states are automatically saved</span>
-        </>
-      )}
-    </div>
-  );
-}
-
+// Header action component
 function ActivateButton({
   isActive,
   onActivate,
@@ -142,15 +124,11 @@ export default function AutomationEditorPage() {
     };
   }, [handleTitleChange]);
 
-  // Update header actions when saving or isActive changes
+  // Update header actions when isActive changes
   useEffect(() => {
     if (!mounted) return;
 
     breadcrumbRef.current.setHeaderActions([
-      {
-        id: "save-status",
-        content: <SaveStatus saving={saving} />,
-      },
       {
         id: "activate-button",
         content: (
@@ -158,7 +136,7 @@ export default function AutomationEditorPage() {
         ),
       },
     ]);
-  }, [saving, isActive, handleActivate, mounted]);
+  }, [isActive, handleActivate, mounted]);
 
   // Load automation data
   useEffect(() => {
@@ -218,7 +196,7 @@ export default function AutomationEditorPage() {
   }
 
   return (
-    <div className="flex-1 -mx-16 -mb-16 bg-muted/30">
+    <div className="flex-1 -mx-16 -mb-16">
       <AutomationBuilder
         initialData={formData}
         onChange={handleChange}

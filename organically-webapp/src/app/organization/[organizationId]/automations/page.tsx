@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
 import { Automation } from "@/types/automation";
 import { AutomationCard } from "@/components/automations/AutomationCard";
 import { Button } from "@/components/ui/button";
@@ -106,9 +107,23 @@ const mockAutomations: Automation[] = [
 
 type FilterType = "all" | "dm_keyword" | "comment_keyword";
 
+// Header action component
+function CreateButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button onClick={onClick} className="gap-2">
+      <Plus className="w-4 h-4" />
+      Create Automation
+    </Button>
+  );
+}
+
 export default function AutomationsPage() {
   const router = useRouter();
   const { activeOrganization } = useOrganization();
+  const breadcrumb = useBreadcrumb();
+  const breadcrumbRef = useRef(breadcrumb);
+  breadcrumbRef.current = breadcrumb;
+
   const [automations, setAutomations] = useState<Automation[]>(mockAutomations);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
@@ -118,6 +133,24 @@ export default function AutomationsPage() {
   const [automationToDelete, setAutomationToDelete] = useState<string | null>(
     null
   );
+
+  const handleCreate = useCallback(() => {
+    router.push(`/organization/${activeOrganization?.id}/automations/new`);
+  }, [router, activeOrganization?.id]);
+
+  // Set up header actions
+  useEffect(() => {
+    breadcrumbRef.current.setHeaderActions([
+      {
+        id: "create-button",
+        content: <CreateButton onClick={handleCreate} />,
+      },
+    ]);
+
+    return () => {
+      breadcrumbRef.current.clearHeaderActions();
+    };
+  }, [handleCreate]);
 
   // Filter automations
   const filteredAutomations = automations.filter((automation) => {
@@ -167,29 +200,8 @@ export default function AutomationsPage() {
     setAutomationToDelete(null);
   };
 
-  const handleCreate = () => {
-    router.push(`/organization/${activeOrganization?.id}/automations/new`);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Zap className="w-8 h-8 text-yellow-500" />
-            Automations
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Automate your Instagram DMs and comment responses
-          </p>
-        </div>
-        <Button onClick={handleCreate} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Create Automation
-        </Button>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="flex items-center gap-4 p-4 border rounded-lg bg-card">

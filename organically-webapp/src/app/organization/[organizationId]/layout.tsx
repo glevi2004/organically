@@ -168,7 +168,11 @@ function RightSidebar() {
   );
 }
 
-function OrganizationLayoutContent({ children }: { children: React.ReactNode }) {
+function OrganizationLayoutContent({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
@@ -179,14 +183,10 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
     loading: organizationLoading,
     setActiveOrganization,
   } = useOrganization();
-  const {
-    customTitle,
-    isEditableTitle,
-    onTitleChange,
-    headerActions,
-  } = useBreadcrumb();
+  const { customTitle, isEditableTitle, onTitleChange, headerActions } =
+    useBreadcrumb();
   const organizationId = params.organizationId as string;
-  
+
   // Local state for editing title
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState("");
@@ -206,7 +206,7 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
   const nestedPageTitle = pageSegments[1]
     ? customTitle || formatTitle(pageSegments[1])
     : null;
-    
+
   // Handle title edit
   const handleStartEditTitle = () => {
     if (isEditableTitle && onTitleChange) {
@@ -214,14 +214,14 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
       setIsEditingTitle(true);
     }
   };
-  
+
   const handleSaveTitle = () => {
     if (onTitleChange && editingTitleValue.trim()) {
       onTitleChange(editingTitleValue.trim());
     }
     setIsEditingTitle(false);
   };
-  
+
   const handleCancelEdit = () => {
     setIsEditingTitle(false);
     setEditingTitleValue("");
@@ -269,8 +269,8 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
     <SidebarProvider>
       <LeftSidebarProvider>
         <AppSidebar />
-        <SidebarInset className="flex-1 flex flex-col">
-          <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+        <SidebarInset className="flex-1 flex flex-col bg-muted/30">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 bg-background">
             <div className="flex items-center gap-2 px-4">
               <LeftSidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-2 h-4" />
@@ -298,7 +298,9 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
                           <Input
                             autoFocus
                             value={editingTitleValue}
-                            onChange={(e) => setEditingTitleValue(e.target.value)}
+                            onChange={(e) =>
+                              setEditingTitleValue(e.target.value)
+                            }
                             onBlur={handleSaveTitle}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") handleSaveTitle();
@@ -331,7 +333,7 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
               <HeaderSidebarToggle />
             </div>
           </header>
-          <div className="flex flex-1 flex-col gap-4 p-16 pt-0 overflow-auto">
+          <div className="flex flex-1 flex-col gap-4 p-16 pt-0 overflow-auto mt-6">
             {children}
           </div>
           {/* Fixed AI Button */}

@@ -119,13 +119,7 @@ export default function HomePage() {
   const channels = activeOrganization?.channels?.length || 0;
 
   return (
-    <div className="bg-background relative overflow-hidden">
-      {/* Background Gradient Effect */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute left-1/3 top-1/4 w-[500px] h-[500px] bg-green-500/10 blur-3xl rounded-full" />
-        <div className="absolute right-1/3 bottom-1/4 w-[500px] h-[500px] bg-teal-500/10 blur-3xl rounded-full" />
-      </div>
-
+    <div className="relative overflow-hidden">
       <div className="space-y-6 max-w-6xl mx-auto">
         {/* Onboarding Prompt */}
         {activeOrganization && !activeOrganization.onboardingCompleted && (
