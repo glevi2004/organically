@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
 import { Plus, Lightbulb, Loader2, GripVertical, Calendar } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Editor } from "@/components/Editor";
+import { IdeaModal } from "@/components/IdeaModal";
 import { toast } from "sonner";
 import {
   createIdea,
@@ -75,13 +75,13 @@ function SortableIdeaCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "aspect-square p-5 bg-gradient-to-br from-white to-yellow-50/40 group relative",
+        "aspect-square p-5 bg-linear-to-br from-white to-yellow-50 group relative",
         "shadow-[2px_2px_8px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.08)]",
         "hover:shadow-[3px_3px_12px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1)]",
         "transition-all duration-200",
-        "before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:to-black/[0.015]",
         isDragging && !isDragOverlay && "opacity-50",
-        isDragOverlay && "shadow-[4px_4px_16px_rgba(0,0,0,0.2)] ring-2 ring-yellow-400/50 rotate-2"
+        isDragOverlay &&
+          "shadow-[4px_4px_16px_rgba(0,0,0,0.2)] ring-2 ring-yellow-400/50 rotate-2"
       )}
     >
       <div className="flex flex-col h-full relative">
@@ -100,7 +100,9 @@ function SortableIdeaCard({
           className="flex-1 cursor-pointer hover:opacity-80 transition-opacity flex flex-col"
           onClick={onClick}
         >
-          <h3 className="font-semibold line-clamp-2 text-gray-900 mb-2">{idea.title}</h3>
+          <h3 className="font-semibold line-clamp-2 text-gray-900 mb-2">
+            {idea.title}
+          </h3>
           {idea.content && (
             <p className="text-sm text-gray-600 line-clamp-3 flex-1">
               {idea.content}
@@ -122,14 +124,16 @@ function SortableIdeaCard({
 // Idea Card for Drag Overlay (non-sortable version)
 function IdeaCardOverlay({ idea }: { idea: Idea }) {
   return (
-    <div className="aspect-square p-5 bg-gradient-to-br from-white to-yellow-50/40 shadow-[4px_4px_16px_rgba(0,0,0,0.2)] ring-2 ring-yellow-400/50 rotate-2 relative before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:to-black/[0.015]">
+    <div className="aspect-square p-5 bg-linear-to-br from-white to-yellow-50 shadow-[4px_4px_16px_rgba(0,0,0,0.2)] ring-2 ring-yellow-400/50 rotate-2 relative">
       <div className="flex flex-col h-full relative">
         <div className="absolute -top-2 -right-2 p-1.5 text-gray-400">
           <GripVertical className="w-4 h-4" />
         </div>
 
         <div className="flex-1 flex flex-col">
-          <h3 className="font-semibold line-clamp-2 text-gray-900 mb-2">{idea.title}</h3>
+          <h3 className="font-semibold line-clamp-2 text-gray-900 mb-2">
+            {idea.title}
+          </h3>
           {idea.content && (
             <p className="text-sm text-gray-600 line-clamp-3 flex-1">
               {idea.content}
@@ -151,13 +155,16 @@ function IdeaCardOverlay({ idea }: { idea: Idea }) {
 export default function IdeaDumpPage() {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const router = useRouter();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Modal state
+  const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
+  const [showIdeaModal, setShowIdeaModal] = useState(false);
 
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -208,9 +215,22 @@ export default function IdeaDumpPage() {
     }
   }, [activeProfile, loadIdeas]);
 
-  // Navigate to idea edit page
+  // Open idea in modal
   const handleOpenIdea = (idea: Idea) => {
-    router.push(`/profile/${activeProfile?.id}/idea-dump/${idea.id}`);
+    setSelectedIdeaId(idea.id);
+    setShowIdeaModal(true);
+  };
+
+  // Handle idea update from modal
+  const handleIdeaUpdated = (updatedIdea: Idea) => {
+    setIdeas((prev) =>
+      prev.map((i) => (i.id === updatedIdea.id ? updatedIdea : i))
+    );
+  };
+
+  // Handle idea deletion from modal
+  const handleIdeaDeleted = (ideaId: string) => {
+    setIdeas((prev) => prev.filter((i) => i.id !== ideaId));
   };
 
   const handleAddIdea = async () => {
@@ -403,6 +423,15 @@ export default function IdeaDumpPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Idea Modal */}
+      <IdeaModal
+        ideaId={selectedIdeaId}
+        open={showIdeaModal}
+        onOpenChange={setShowIdeaModal}
+        onIdeaUpdated={handleIdeaUpdated}
+        onIdeaDeleted={handleIdeaDeleted}
+      />
     </div>
   );
 }
