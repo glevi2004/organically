@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { Bot, PanelRight } from "lucide-react";
+import { Bot, PanelRight, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import {
@@ -32,6 +32,7 @@ import {
   LeftSidebarProvider,
 } from "@/components/navigation/app-sidebar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
@@ -48,13 +49,15 @@ function FloatingAIButton() {
   if (isOpen) return null;
 
   return (
-    <Button
-      onClick={open}
-      className="size-16 rounded-full bg-linear-to-r from-green-600 via-emerald-500 to-teal-600 hover:opacity-90 shadow-md"
-    >
-      <Bot className="size-8 text-white" />
-      <span className="sr-only">Open AI Assistant</span>
-    </Button>
+    <div className="fixed bottom-6 right-6 z-50">
+      <Button
+        onClick={open}
+        className="size-16 rounded-full bg-linear-to-r from-green-600 via-emerald-500 to-teal-600 hover:opacity-90 shadow-md"
+      >
+        <Bot className="size-8 text-white" />
+        <span className="sr-only">Open AI Assistant</span>
+      </Button>
+    </div>
   );
 }
 
@@ -176,8 +179,17 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
     loading: organizationLoading,
     setActiveOrganization,
   } = useOrganization();
-  const { customTitle } = useBreadcrumb();
+  const {
+    customTitle,
+    isEditableTitle,
+    onTitleChange,
+    headerActions,
+  } = useBreadcrumb();
   const organizationId = params.organizationId as string;
+  
+  // Local state for editing title
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitleValue, setEditingTitleValue] = useState("");
 
   // Get current page from URL for breadcrumb
   const pathSegments = pathname.split("/").filter(Boolean);
@@ -194,6 +206,26 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
   const nestedPageTitle = pageSegments[1]
     ? customTitle || formatTitle(pageSegments[1])
     : null;
+    
+  // Handle title edit
+  const handleStartEditTitle = () => {
+    if (isEditableTitle && onTitleChange) {
+      setEditingTitleValue(customTitle || nestedPageTitle || "");
+      setIsEditingTitle(true);
+    }
+  };
+  
+  const handleSaveTitle = () => {
+    if (onTitleChange && editingTitleValue.trim()) {
+      onTitleChange(editingTitleValue.trim());
+    }
+    setIsEditingTitle(false);
+  };
+  
+  const handleCancelEdit = () => {
+    setIsEditingTitle(false);
+    setEditingTitleValue("");
+  };
 
   useEffect(() => {
     async function validateOrganization() {
@@ -262,23 +294,48 @@ function OrganizationLayoutContent({ children }: { children: React.ReactNode }) 
                     <>
                       <BreadcrumbSeparator />
                       <BreadcrumbItem>
-                        <BreadcrumbPage>{nestedPageTitle}</BreadcrumbPage>
+                        {isEditingTitle ? (
+                          <Input
+                            autoFocus
+                            value={editingTitleValue}
+                            onChange={(e) => setEditingTitleValue(e.target.value)}
+                            onBlur={handleSaveTitle}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveTitle();
+                              if (e.key === "Escape") handleCancelEdit();
+                            }}
+                            className="h-7 w-48 text-sm"
+                          />
+                        ) : isEditableTitle ? (
+                          <button
+                            onClick={handleStartEditTitle}
+                            className="flex items-center gap-1.5 hover:bg-muted px-2 py-1 -mx-2 -my-1 rounded-md transition-colors"
+                          >
+                            <BreadcrumbPage>{nestedPageTitle}</BreadcrumbPage>
+                            <Pencil className="w-3 h-3 text-muted-foreground" />
+                          </button>
+                        ) : (
+                          <BreadcrumbPage>{nestedPageTitle}</BreadcrumbPage>
+                        )}
                       </BreadcrumbItem>
                     </>
                   )}
                 </BreadcrumbList>
               </Breadcrumb>
             </div>
-            <div className="flex items-center gap-2 px-4">
+            <div className="flex items-center gap-4 px-4">
+              {/* Dynamic header actions from context */}
+              {headerActions.map((action) => (
+                <div key={action.id}>{action.content}</div>
+              ))}
               <HeaderSidebarToggle />
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-16 pt-0 overflow-auto">
             {children}
           </div>
-          <div className="absolute bottom-6 right-6">
-            <FloatingAIButton />
-          </div>
+          {/* Fixed AI Button */}
+          <FloatingAIButton />
         </SidebarInset>
 
         <RightSidebar />
