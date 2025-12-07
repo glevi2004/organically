@@ -1,60 +1,70 @@
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
-import { Profile } from "@/types/profile";
+import { Organization } from "@/types/organization";
 
 /**
- * Save onboarding progress for a profile
+ * Remove undefined values from an object (Firestore doesn't accept undefined)
+ */
+function removeUndefinedValues<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined)
+  ) as Partial<T>;
+}
+
+/**
+ * Save onboarding progress for an organization
  */
 export async function saveOnboardingProgress(
-  profileId: string,
+  organizationId: string,
   step: number,
-  data: Partial<Profile>
+  data: Partial<Organization>
 ): Promise<void> {
-  const profileRef = doc(db, "profiles", profileId);
+  const organizationRef = doc(db, "organizations", organizationId);
+  const cleanData = removeUndefinedValues(data);
 
-  await updateDoc(profileRef, {
-    ...data,
+  await updateDoc(organizationRef, {
+    ...cleanData,
     onboardingStep: step,
     updatedAt: serverTimestamp(),
   });
 }
 
 /**
- * Get onboarding data for a profile
+ * Get onboarding data for an organization
  */
 export async function getOnboardingData(
-  profileId: string
-): Promise<Profile | null> {
-  const profileRef = doc(db, "profiles", profileId);
-  const profileSnap = await getDoc(profileRef);
+  organizationId: string
+): Promise<Organization | null> {
+  const organizationRef = doc(db, "organizations", organizationId);
+  const organizationSnap = await getDoc(organizationRef);
 
-  if (!profileSnap.exists()) {
+  if (!organizationSnap.exists()) {
     return null;
   }
 
-  return profileSnap.data() as Profile;
+  return organizationSnap.data() as Organization;
 }
 
 /**
  * Mark onboarding as complete
  */
-export async function completeOnboarding(profileId: string): Promise<void> {
-  const profileRef = doc(db, "profiles", profileId);
+export async function completeOnboarding(organizationId: string): Promise<void> {
+  const organizationRef = doc(db, "organizations", organizationId);
 
-  await updateDoc(profileRef, {
+  await updateDoc(organizationRef, {
     onboardingCompleted: true,
-    onboardingStep: 5,
+    onboardingStep: 1,
     updatedAt: serverTimestamp(),
   });
 }
 
 /**
- * Update profile with onboarding-specific data
+ * Update organization with onboarding-specific data
  */
-export async function updateProfileOnboarding(
-  profileId: string,
+export async function updateOrganizationOnboarding(
+  organizationId: string,
   step: number,
-  data: Partial<Profile>
+  data: Partial<Organization>
 ): Promise<void> {
-  await saveOnboardingProgress(profileId, step, data);
+  await saveOnboardingProgress(organizationId, step, data);
 }

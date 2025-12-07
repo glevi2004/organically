@@ -81,10 +81,10 @@ export default function Home() {
               <div className="w-12 h-12 rounded-full bg-linear-to-r from-green-600 via-emerald-500 to-teal-600 flex items-center justify-center text-white">
                 <Smartphone className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-semibold">Select Your Platforms</h3>
+              <h3 className="text-lg font-semibold">Instagram Focused</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Grow on Instagram, TikTok, YouTube, Twitter/X — all at once or
-                platform by platform.
+                Grow your Instagram with AI-powered content strategies tailored
+                to your brand and audience.
               </p>
             </div>
 

@@ -10,11 +10,11 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 
 /**
- * Upload a profile image to Firebase Storage
+ * Upload an organization image to Firebase Storage
  */
-export async function uploadProfileImage(
+export async function uploadOrganizationImage(
   userId: string,
-  profileId: string,
+  organizationId: string,
   file: File
 ): Promise<string> {
   // Validate file type
@@ -33,7 +33,7 @@ export async function uploadProfileImage(
 
   // Generate storage path
   const fileExtension = file.name.split(".").pop() || "jpg";
-  const storagePath = `profile-images/${userId}/${profileId}/avatar.${fileExtension}`;
+  const storagePath = `organization-images/${userId}/${organizationId}/avatar.${fileExtension}`;
   const storageRef = ref(storage, storagePath);
 
   try {
@@ -44,15 +44,15 @@ export async function uploadProfileImage(
     const downloadURL = await getDownloadURL(storageRef);
     return downloadURL;
   } catch (error) {
-    console.error("Error uploading profile image:", error);
+    console.error("Error uploading organization image:", error);
     throw new Error("Failed to upload image. Please try again.");
   }
 }
 
 /**
- * Delete a profile image from Firebase Storage
+ * Delete an organization image from Firebase Storage
  */
-export async function deleteProfileImage(imageUrl: string): Promise<void> {
+export async function deleteOrganizationImage(imageUrl: string): Promise<void> {
   try {
     // Extract storage path from URL
     // Firebase Storage URLs format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media&token={token}
@@ -76,16 +76,16 @@ export async function deleteProfileImage(imageUrl: string): Promise<void> {
       console.warn("Image already deleted or doesn't exist");
       return;
     }
-    console.error("Error deleting profile image:", error);
+    console.error("Error deleting organization image:", error);
     // Don't throw - we don't want to block operations if deletion fails
   }
 }
 
 /**
- * Get the default profile image URL
+ * Get the default organization image URL
  * Using a placeholder service for now
  */
-export function getDefaultProfileImageUrl(): string {
+export function getDefaultOrganizationImageUrl(): string {
   // Using a neutral gradient as default
   return "https://ui-avatars.com/api/?name=User&background=10b981&color=fff&size=200";
 }
@@ -110,4 +110,3 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
 
   return { valid: true };
 }
-

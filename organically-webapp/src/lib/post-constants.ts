@@ -6,31 +6,28 @@ export const POST_TYPES: Array<{
   description: string;
 }> = [
   {
-    id: "short-video",
-    label: "Short Video",
-    description: "TikToks, Reels, Shorts",
+    id: "reel",
+    label: "Reel",
+    description: "Short-form vertical video",
   },
   {
-    id: "long-video",
-    label: "Long Video",
-    description: "YouTube videos, tutorials",
+    id: "carousel",
+    label: "Carousel",
+    description: "Multi-image swipeable post",
   },
   {
-    id: "thread",
-    label: "Thread",
-    description: "Twitter/X or LinkedIn threads",
+    id: "story",
+    label: "Story",
+    description: "24-hour temporary content",
+  },
+  {
+    id: "post",
+    label: "Post",
+    description: "Single image or video post",
   },
 ];
 
-const ALL_PLATFORMS: PostPlatform[] = [
-  "instagram",
-  "tiktok",
-  "youtube",
-  "x",
-  "linkedin",
-];
-
-const THREAD_PLATFORMS: PostPlatform[] = ["x", "linkedin"];
+const ALL_PLATFORMS: PostPlatform[] = ["instagram"];
 
 /**
  * Get allowed platforms for a given post type
@@ -40,18 +37,6 @@ const THREAD_PLATFORMS: PostPlatform[] = ["x", "linkedin"];
 export function getAllowedPlatformsForType(
   type: PostType | undefined
 ): PostPlatform[] {
-  if (!type) {
-    return ALL_PLATFORMS;
-  }
-
-  switch (type) {
-    case "thread":
-      return THREAD_PLATFORMS;
-    case "short-video":
-    case "long-video":
-      return ALL_PLATFORMS;
-    default:
-      return ALL_PLATFORMS;
-  }
+  // All post types are for Instagram
+  return ALL_PLATFORMS;
 }
-

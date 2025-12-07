@@ -34,7 +34,7 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
     const existingPosts = await getDocs(
       query(
         collection(db, POSTS_COLLECTION),
-        where("profileId", "==", input.profileId),
+        where("organizationId", "==", input.organizationId),
         where("status", "==", input.status || "idea")
       )
     );
@@ -42,7 +42,7 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
 
     const post: Post = {
       id: postId,
-      profileId: input.profileId,
+      organizationId: input.organizationId,
       userId: input.userId,
       title: input.title,
       content: input.content,
@@ -60,7 +60,7 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
     // Build Firestore document, filtering out undefined values
     const firestoreDoc: Record<string, any> = {
       id: post.id,
-      profileId: post.profileId,
+      organizationId: post.organizationId,
       userId: post.userId,
       title: post.title,
       content: post.content,
@@ -118,13 +118,13 @@ export async function getPost(postId: string): Promise<Post | null> {
 }
 
 /**
- * Get all posts for a profile
+ * Get all posts for an organization
  */
-export async function getPostsByProfile(profileId: string): Promise<Post[]> {
+export async function getPostsByOrganization(organizationId: string): Promise<Post[]> {
   try {
     const q = query(
       collection(db, POSTS_COLLECTION),
-      where("profileId", "==", profileId),
+      where("organizationId", "==", organizationId),
       orderBy("createdAt", "desc")
     );
 
@@ -155,14 +155,14 @@ export async function getPostsByProfile(profileId: string): Promise<Post[]> {
  * Get posts for a specific date range
  */
 export async function getPostsByDateRange(
-  profileId: string,
+  organizationId: string,
   startDate: Date,
   endDate: Date
 ): Promise<Post[]> {
   try {
     const q = query(
       collection(db, POSTS_COLLECTION),
-      where("profileId", "==", profileId),
+      where("organizationId", "==", organizationId),
       where("scheduledDate", ">=", Timestamp.fromDate(startDate)),
       where("scheduledDate", "<=", Timestamp.fromDate(endDate)),
       orderBy("scheduledDate", "asc")
@@ -196,7 +196,7 @@ export async function getPostsByDateRange(
  */
 export async function updatePost(
   postId: string,
-  updates: Partial<Omit<Post, "id" | "profileId" | "userId" | "createdAt">>
+  updates: Partial<Omit<Post, "id" | "organizationId" | "userId" | "createdAt">>
 ): Promise<void> {
   try {
     const docRef = doc(db, POSTS_COLLECTION, postId);

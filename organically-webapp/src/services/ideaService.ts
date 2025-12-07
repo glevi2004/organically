@@ -26,7 +26,7 @@ export async function createIdea(input: CreateIdeaInput): Promise<Idea> {
     const now = new Date();
 
     // Get existing ideas to determine order
-    const existingIdeas = await getIdeasByProfile(input.profileId);
+    const existingIdeas = await getIdeasByOrganization(input.organizationId);
     const maxOrder =
       existingIdeas.length > 0
         ? Math.max(...existingIdeas.map((i) => i.order))
@@ -34,7 +34,7 @@ export async function createIdea(input: CreateIdeaInput): Promise<Idea> {
 
     const idea: Idea = {
       id: ideaId,
-      profileId: input.profileId,
+      organizationId: input.organizationId,
       userId: input.userId,
       title: input.title,
       content: input.content || "",
@@ -71,7 +71,7 @@ export async function getIdea(ideaId: string): Promise<Idea | null> {
     const data = docSnap.data();
     return {
       id: docSnap.id,
-      profileId: data.profileId,
+      organizationId: data.organizationId,
       userId: data.userId,
       title: data.title,
       content: data.content || "",
@@ -86,13 +86,13 @@ export async function getIdea(ideaId: string): Promise<Idea | null> {
 }
 
 /**
- * Get all ideas for a profile
+ * Get all ideas for an organization
  */
-export async function getIdeasByProfile(profileId: string): Promise<Idea[]> {
+export async function getIdeasByOrganization(organizationId: string): Promise<Idea[]> {
   try {
     const q = query(
       collection(db, IDEAS_COLLECTION),
-      where("profileId", "==", profileId),
+      where("organizationId", "==", organizationId),
       orderBy("order", "asc")
     );
 
@@ -103,7 +103,7 @@ export async function getIdeasByProfile(profileId: string): Promise<Idea[]> {
       const data = doc.data();
       ideas.push({
         id: doc.id,
-        profileId: data.profileId,
+        organizationId: data.organizationId,
         userId: data.userId,
         title: data.title,
         content: data.content || "",
@@ -125,7 +125,7 @@ export async function getIdeasByProfile(profileId: string): Promise<Idea[]> {
  */
 export async function updateIdea(
   ideaId: string,
-  updates: Partial<Omit<Idea, "id" | "profileId" | "userId" | "createdAt">>
+  updates: Partial<Omit<Idea, "id" | "organizationId" | "userId" | "createdAt">>
 ): Promise<void> {
   try {
     const docRef = doc(db, IDEAS_COLLECTION, ideaId);

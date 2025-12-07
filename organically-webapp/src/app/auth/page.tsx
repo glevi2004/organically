@@ -59,15 +59,17 @@ export default function AuthPage() {
         password
       );
       toast.success("Welcome back! Signed in successfully.");
-      
+
       // Import services dynamically to avoid circular dependencies
-      const { getUserProfiles } = await import("@/services/profileService");
-      const profiles = await getUserProfiles(userCredential.user.uid);
-      
-      if (profiles.length === 0) {
+      const { getUserOrganizations } = await import(
+        "@/services/organizationService"
+      );
+      const organizations = await getUserOrganizations(userCredential.user.uid);
+
+      if (organizations.length === 0) {
         router.push("/onboarding");
       } else {
-        router.push(`/profile/${profiles[0].id}/home`);
+        router.push(`/organization/${organizations[0].id}/home`);
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to sign in");
@@ -92,7 +94,7 @@ export default function AuthPage() {
         email,
         password
       );
-      
+
       // Create user profile in Firestore
       const { createUserProfile } = await import("@/services/userService");
       await createUserProfile(userCredential.user.uid, {
@@ -100,7 +102,7 @@ export default function AuthPage() {
         displayName: userCredential.user.displayName || undefined,
         photoURL: userCredential.user.photoURL || undefined,
       });
-      
+
       toast.success("Account created successfully! Welcome to Organically.");
       router.push("/onboarding");
     } catch (error: any) {
@@ -155,7 +157,7 @@ export default function AuthPage() {
         "@/services/userService"
       );
       const userExists = await checkUserExists(result.user.uid);
-      
+
       if (!userExists) {
         // New user - create profile
         await createUserProfile(result.user.uid, {
@@ -164,17 +166,19 @@ export default function AuthPage() {
           photoURL: result.user.photoURL || undefined,
         });
       }
-      
-      // Check for profiles
-      const { getUserProfiles } = await import("@/services/profileService");
-      const profiles = await getUserProfiles(result.user.uid);
-      
+
+      // Check for organizations
+      const { getUserOrganizations } = await import(
+        "@/services/organizationService"
+      );
+      const organizations = await getUserOrganizations(result.user.uid);
+
       toast.success("Signed in with Google!");
-      
-      if (profiles.length === 0) {
+
+      if (organizations.length === 0) {
         router.push("/onboarding");
       } else {
-        router.push(`/profile/${profiles[0].id}/home`);
+        router.push(`/organization/${organizations[0].id}/home`);
       }
     } catch (error: any) {
       // Handles the classic linking error case
@@ -231,15 +235,17 @@ export default function AuthPage() {
       setShowLinkDialog(false);
       setLinkPassword("");
       setPendingCredential(null);
-      
-      // Check for profiles
-      const { getUserProfiles } = await import("@/services/profileService");
-      const profiles = await getUserProfiles(auth.currentUser.uid);
-      
-      if (profiles.length === 0) {
+
+      // Check for organizations
+      const { getUserOrganizations } = await import(
+        "@/services/organizationService"
+      );
+      const organizations = await getUserOrganizations(auth.currentUser.uid);
+
+      if (organizations.length === 0) {
         router.push("/onboarding");
       } else {
-        router.push(`/profile/${profiles[0].id}/home`);
+        router.push(`/organization/${organizations[0].id}/home`);
       }
     } catch (error: any) {
       if (error.code === "auth/wrong-password") {

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { toast } from "sonner";
 import {
   Sidebar,
@@ -18,17 +18,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
   SidebarRail,
   useSidebar,
 } from "@/components/animate-ui/components/radix/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,14 +38,12 @@ import {
 import {
   Home,
   Settings,
-  ChevronRight,
   ChevronsUpDown,
   LogOut,
   Sparkles,
   BadgeCheck,
   CreditCard,
   Bell,
-  BarChart3,
   Lightbulb,
   Calendar,
   FileEdit,
@@ -63,7 +53,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/theme/mode-toggle";
-import { ProfileSwitcher } from "@/components/profile/ProfileSwitcher";
+import { OrganizationSwitcher } from "@/components/organization/OrganizationSwitcher";
 
 // Create a context to share the left sidebar's toggle function
 const LeftSidebarContext = React.createContext<{
@@ -124,42 +114,42 @@ export function LeftSidebarTrigger({
   );
 }
 
-const getNavMain = (profileId: string) => [
+const getNavMain = (organizationId: string) => [
   {
     title: "Home",
-    url: `/profile/${profileId}/home`,
+    url: `/organization/${organizationId}/home`,
     icon: Home,
   },
   {
     title: "Idea Dump",
-    url: `/profile/${profileId}/idea-dump`,
+    url: `/organization/${organizationId}/idea-dump`,
     icon: Lightbulb,
   },
   {
     title: "Calendar",
-    url: `/profile/${profileId}/calendar`,
+    url: `/organization/${organizationId}/calendar`,
     icon: Calendar,
   },
   {
     title: "Posts",
-    url: `/profile/${profileId}/posts`,
+    url: `/organization/${organizationId}/posts`,
     icon: FileEdit,
   },
   {
-    title: "Profile",
-    url: `/profile/${profileId}/profile`,
+    title: "Organization",
+    url: `/organization/${organizationId}/organization`,
     icon: Globe,
   },
   {
     title: "Settings",
-    url: `/profile/${profileId}/settings`,
+    url: `/organization/${organizationId}/settings`,
     icon: Settings,
   },
 ];
 
 function AppSidebarContent() {
   const { user } = useAuth();
-  const { activeProfile } = useProfile();
+  const { activeOrganization } = useOrganization();
   const router = useRouter();
   const pathname = usePathname();
   const { open: isSidebarOpen } = useSidebar();
@@ -188,15 +178,15 @@ function AppSidebarContent() {
     return "U";
   };
 
-  const navMain = activeProfile ? getNavMain(activeProfile.id) : [];
+  const navMain = activeOrganization ? getNavMain(activeOrganization.id) : [];
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        {/* Profile Switcher */}
+        {/* Organization Switcher */}
         <SidebarMenu>
           <SidebarMenuItem>
-            <ProfileSwitcher />
+            <OrganizationSwitcher />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -208,54 +198,7 @@ function AppSidebarContent() {
           <SidebarMenu>
             {navMain.map((item) => {
               const isActive = pathname === item.url;
-              const isParentActive =
-                item.items?.some((sub) => pathname === sub.url) || false;
 
-              // If item has sub-items, render as collapsible (Settings)
-              if (item.items && item.items.length > 0) {
-                return (
-                  <Collapsible
-                    key={item.title}
-                    asChild
-                    defaultOpen={isParentActive}
-                    className="group/collapsible"
-                  >
-                    <SidebarMenuItem>
-                      <Tooltip open={isSidebarOpen ? false : undefined}>
-                        <TooltipTrigger asChild>
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuButton isActive={isParentActive}>
-                              {item.icon && <item.icon />}
-                              <span>{item.title}</span>
-                              <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90" />
-                            </SidebarMenuButton>
-                          </CollapsibleTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <p>{item.title}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {item.items.map((subItem) => (
-                            <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={pathname === subItem.url}
-                              >
-                                <Link href={subItem.url}>
-                                  <span>{subItem.title}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </SidebarMenuItem>
-                  </Collapsible>
-                );
-              }
-              // Otherwise, render as simple button (Home, Analytics, etc.)
               return (
                 <SidebarMenuItem key={item.title}>
                   <Tooltip open={isSidebarOpen ? false : undefined}>

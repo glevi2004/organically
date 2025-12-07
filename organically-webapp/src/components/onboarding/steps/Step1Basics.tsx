@@ -3,16 +3,13 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NICHES } from "@/lib/profile-constants";
 
 interface Step1Data {
   name: string;
   imageFile?: File | null;
   currentImageUrl?: string;
   description?: string;
-  niche?: string[];
   brandVoice?: string;
   valuesMission?: string;
 }
@@ -26,30 +23,30 @@ export function Step1Basics({ data, onDataChange }: Step1BasicsProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Create Your Profile</h2>
+        <h2 className="text-2xl font-bold mb-2">Create Your Organization</h2>
         <p className="text-muted-foreground">
-          Let's start with the basics. Your profile is where you'll manage your
+          Let's start with the basics. Your organization is where you'll manage your
           content plans, ideas, and posts.
         </p>
       </div>
 
-      {/* Profile Image */}
+      {/* Organization Image */}
       <div className="space-y-2">
-        <Label>Profile Image</Label>
+        <Label>Organization Image</Label>
         <ImageUpload
           value={data.imageFile || data.currentImageUrl}
           onChange={(file) => onDataChange({ ...data, imageFile: file })}
-          placeholder="Upload a profile image"
+          placeholder="Upload an organization image"
         />
       </div>
 
-      {/* Profile Name */}
+      {/* Organization Name */}
       <div className="space-y-2">
-        <Label htmlFor="profile-name">
-          Profile Name <span className="text-destructive">*</span>
+        <Label htmlFor="organization-name">
+          Organization Name <span className="text-destructive">*</span>
         </Label>
         <Input
-          id="profile-name"
+          id="organization-name"
           type="text"
           placeholder="e.g., Personal Brand, Startup, Agency"
           value={data.name}
@@ -90,41 +87,6 @@ export function Step1Basics({ data, onDataChange }: Step1BasicsProps) {
                 Minimum 200 characters recommended
               </p>
             )}
-        </div>
-      </div>
-
-      {/* Niche/Category */}
-      <div className="space-y-2">
-        <Label>Niche / Category</Label>
-        <p className="text-sm text-muted-foreground">
-          Select one or more categories that best describe your content
-        </p>
-        <div className="flex flex-wrap gap-3">
-          {NICHES.map((niche) => (
-            <button
-              key={niche.id}
-              type="button"
-              onClick={() => {
-                const currentNiche = data.niche || [];
-                const newNiche = currentNiche.includes(niche.id)
-                  ? currentNiche.filter((n) => n !== niche.id)
-                  : [...currentNiche, niche.id];
-                onDataChange({ ...data, niche: newNiche });
-              }}
-              className={cn(
-                "p-3 rounded-lg border-2 transition-all flex items-center gap-2",
-                (data.niche || []).includes(niche.id)
-                  ? "border-emerald-500 bg-emerald-500/10"
-                  : "border-border hover:border-emerald-300"
-              )}
-            >
-              <span className="text-xl">{niche.icon}</span>
-              <span className="text-sm font-medium">{niche.label}</span>
-              {(data.niche || []).includes(niche.id) && (
-                <Check className="w-4 h-4 text-emerald-500" />
-              )}
-            </button>
-          ))}
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 export interface Idea {
   id: string;
-  profileId: string;
+  organizationId: string;
   userId: string;
   title: string;
   content: string;
@@ -10,7 +10,7 @@ export interface Idea {
 }
 
 export interface CreateIdeaInput {
-  profileId: string;
+  organizationId: string;
   userId: string;
   title: string;
   content?: string;

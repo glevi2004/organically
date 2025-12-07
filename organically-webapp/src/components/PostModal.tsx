@@ -33,7 +33,7 @@ import {
 } from "@/services/postService";
 import { Post, PostStatus, PostType, PostPlatform } from "@/types/post";
 import Image from "next/image";
-import { PLATFORMS } from "@/lib/profile-constants";
+import { PLATFORMS } from "@/lib/organization-constants";
 import { POST_TYPES, getAllowedPlatformsForType } from "@/lib/post-constants";
 import { cn } from "@/lib/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -82,12 +82,12 @@ interface PostModalProps {
   onPostCreated?: (post: Post) => void;
   onPostUpdated?: (post: Post) => void;
   onPostDeleted?: (postId: string) => void;
-  profileId: string;
+  organizationId: string;
   userId: string;
 }
 
 const getDefaultPost = (): Omit<Post, "id" | "createdAt" | "updatedAt"> => ({
-  profileId: "",
+  organizationId: "",
   userId: "",
   title: "",
   content: "",
@@ -103,7 +103,7 @@ export function PostModal({
   onPostCreated,
   onPostUpdated,
   onPostDeleted,
-  profileId,
+  organizationId,
   userId,
 }: PostModalProps) {
   const isEditMode = !!post;
@@ -139,13 +139,13 @@ export function PostModal({
         // Reset to default for new post
         setEditedPost({
           ...getDefaultPost(),
-          profileId,
+          organizationId,
           userId,
         });
         lastSavedRef.current = "";
       }
     }
-  }, [post, open, profileId, userId]);
+  }, [post, open, organizationId, userId]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -285,7 +285,7 @@ export function PostModal({
     try {
       setIsSaving(true);
       const newPost = await createPost({
-        profileId,
+        organizationId,
         userId,
         title: editedPost.title.trim(),
         content: editedPost.content.trim(),

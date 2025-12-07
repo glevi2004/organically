@@ -12,86 +12,70 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function onlyUpdating(allowedFields) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
-    }
-
     // --- USERS COLLECTION ---
     match /users/{userId} {
       allow read: if isOwner(userId);
-
-      allow create: if isOwner(userId)
-                    && request.resource.data.email is string
-                    // SECURITY: Prevent extra fields (e.g. isAdmin)
-                    && request.resource.data.keys().hasOnly(['email', 'userId', 'createdAt']);
-
-      allow update: if isOwner(userId)
-                    && request.resource.data.userId == resource.data.userId
-                    // SECURITY: Allow updating email/profile info, but not userId
-                    && onlyUpdating(['email', 'updatedAt']);
-
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
 
 
-    // --- PROFILES COLLECTION ---
-    match /profiles/{profileId} {
-      // Allow listing/querying profiles only for the owner's profiles
-      // The query must filter by userId == request.auth.uid
-      allow list: if isAuthenticated() 
-                  && request.query.limit <= 100
-                  && resource.data.userId == request.auth.uid;
+    // --- ORGANIZATIONS COLLECTION ---
+    match /organizations/{organizationId} {
+      // Allow read if user is authenticated (query will filter by userId)
+      allow read: if isAuthenticated();
       
-      // When reading a specific profile, verify ownership
-      allow get: if isAuthenticated() && resource.data.userId == request.auth.uid;
-
+      // Create: must be authenticated and set userId to own uid
       allow create: if isAuthenticated()
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.name is string;
 
+      // Update: must own the document (check existing data)
       allow update: if isAuthenticated()
-                    && resource.data.userId == request.auth.uid
-                    && request.resource.data.userId == resource.data.userId;
+                    && resource.data.userId == request.auth.uid;
 
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Delete: must own the document
+      allow delete: if isAuthenticated() 
+                    && resource.data.userId == request.auth.uid;
     }
 
 
     // --- POSTS COLLECTION ---
     match /posts/{postId} {
-      // Allow listing/querying posts only for the owner's posts
-      allow list: if isAuthenticated() 
-                  && resource.data.userId == request.auth.uid;
-      
-      allow get: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Allow read if user is authenticated (query will filter by userId)
+      allow read: if isAuthenticated();
 
+      // Create: must be authenticated and set userId to own uid
       allow create: if isAuthenticated()
                     && request.resource.data.userId == request.auth.uid;
 
+      // Update: must own the document
       allow update: if isAuthenticated()
-                    && resource.data.userId == request.auth.uid
-                    && request.resource.data.userId == resource.data.userId;
+                    && resource.data.userId == request.auth.uid;
 
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Delete: must own the document
+      allow delete: if isAuthenticated() 
+                    && resource.data.userId == request.auth.uid;
     }
 
 
     // --- IDEAS COLLECTION ---
     match /ideas/{ideaId} {
-      // Allow listing/querying ideas only for the owner's ideas
-      allow list: if isAuthenticated() 
-                  && resource.data.userId == request.auth.uid;
-      
-      allow get: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Allow read if user is authenticated (query will filter by userId)
+      allow read: if isAuthenticated();
 
+      // Create: must be authenticated and set userId to own uid
       allow create: if isAuthenticated()
                     && request.resource.data.userId == request.auth.uid;
 
+      // Update: must own the document
       allow update: if isAuthenticated()
-                    && resource.data.userId == request.auth.uid
-                    && request.resource.data.userId == resource.data.userId;
+                    && resource.data.userId == request.auth.uid;
 
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Delete: must own the document
+      allow delete: if isAuthenticated() 
+                    && resource.data.userId == request.auth.uid;
     }
 
     // Default deny

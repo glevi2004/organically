@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ProfileProvider } from "@/contexts/ProfileContext";
+import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Organically - Grow Your Content Organically with AI",
+  title: "Organically - Grow Your Instagram Organically with AI",
   description:
-    "Consistency. Growth. Viral Content. All Done For You — With AI. Generate personalized weekly content plans for Instagram, TikTok, YouTube, and Twitter.",
+    "Consistency. Growth. Viral Content. All Done For You — With AI. Generate personalized weekly content plans for Instagram.",
 };
 
 export default function RootLayout({
@@ -41,10 +41,10 @@ export default function RootLayout({
           suppressHydrationWarning
         >
           <AuthProvider>
-            <ProfileProvider>
+            <OrganizationProvider>
               {children}
               <Toaster />
-            </ProfileProvider>
+            </OrganizationProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

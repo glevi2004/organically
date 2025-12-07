@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/theme/mode-toggle";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 export function Navbar() {
   const router = useRouter();
   const { user } = useAuth();
-  const { profiles } = useProfile();
+  const { organizations } = useOrganization();
 
   const handleSignOut = async () => {
     try {
@@ -47,8 +47,8 @@ export function Navbar() {
                   size="sm"
                   className="bg-transparent hover:bg-primary/10"
                   onClick={() => {
-                    if (profiles.length > 0) {
-                      router.push(`/profile/${profiles[0].id}/home`);
+                    if (organizations.length > 0) {
+                      router.push(`/organization/${organizations[0].id}/home`);
                     } else {
                       router.push("/onboarding");
                     }
