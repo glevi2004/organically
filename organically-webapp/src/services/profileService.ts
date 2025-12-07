@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   orderBy,
@@ -129,6 +130,20 @@ export async function markOnboardingComplete(profileId: string): Promise<void> {
   await updateDoc(profileRef, {
     onboardingCompleted: true,
     onboardingStep: 5,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Disconnect a social media account from a profile
+ */
+export async function disconnectSocialAccount(
+  profileId: string,
+  platform: "twitter" | "instagram" | "tiktok"
+): Promise<void> {
+  const profileRef = doc(db, "profiles", profileId);
+  await updateDoc(profileRef, {
+    [`socialConnections.${platform}`]: deleteField(),
     updatedAt: serverTimestamp(),
   });
 }
