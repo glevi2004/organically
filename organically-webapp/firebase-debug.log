@@ -64,3 +64,75 @@
 [info] ✔  Deploy complete! 
 [info] 
 [info] Project Console: https://console.firebase.google.com/project/organically-2f124/overview
+[debug] [2025-12-08T06:36:52.506Z] ----------------------------------------------------------------------
+[debug] [2025-12-08T06:36:52.513Z] Command:       /opt/homebrew/Cellar/node/23.11.0/bin/node /opt/homebrew/bin/firebase deploy --only storage
+[debug] [2025-12-08T06:36:52.513Z] CLI Version:   14.12.0
+[debug] [2025-12-08T06:36:52.513Z] Platform:      darwin
+[debug] [2025-12-08T06:36:52.513Z] Node Version:  v23.11.0
+[debug] [2025-12-08T06:36:52.513Z] Time:          Mon Dec 08 2025 01:36:52 GMT-0500 (Eastern Standard Time)
+[debug] [2025-12-08T06:36:52.513Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-08T06:36:52.611Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-08T06:36:52.612Z] > authorizing via signed-in user (leviramosgabriel2021@gmail.com)
+[debug] [2025-12-08T06:36:52.613Z] [iam] checking project organically-2f124 for permissions ["firebase.projects.get","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]
+[debug] [2025-12-08T06:36:52.613Z] Checked if tokens are valid: false, expires at: 1765100541407
+[debug] [2025-12-08T06:36:52.613Z] Checked if tokens are valid: false, expires at: 1765100541407
+[debug] [2025-12-08T06:36:52.614Z] > refreshing access token with scopes: []
+[debug] [2025-12-08T06:36:52.615Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-12-08T06:36:52.616Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-08T06:36:52.826Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-12-08T06:36:52.827Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-08T06:36:52.838Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/organically-2f124:testIamPermissions [none]
+[debug] [2025-12-08T06:36:52.838Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/organically-2f124:testIamPermissions x-goog-quota-user=projects/organically-2f124
+[debug] [2025-12-08T06:36:52.838Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/organically-2f124:testIamPermissions {"permissions":["firebase.projects.get","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]}
+[debug] [2025-12-08T06:36:53.015Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/organically-2f124:testIamPermissions 200
+[debug] [2025-12-08T06:36:53.015Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/organically-2f124:testIamPermissions {"permissions":["firebase.projects.get","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]}
+[info] 
+[info] === Deploying to 'organically-2f124'...
+[info] 
+[info] i  deploying storage 
+[info] i  storage: ensuring required API firebasestorage.googleapis.com is enabled... 
+[debug] [2025-12-08T06:36:53.017Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:53.017Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:53.017Z] >>> [apiv2][query] GET https://firebasestorage.googleapis.com/v1alpha/projects/organically-2f124/defaultBucket [none]
+[debug] [2025-12-08T06:36:53.394Z] <<< [apiv2][status] GET https://firebasestorage.googleapis.com/v1alpha/projects/organically-2f124/defaultBucket 200
+[debug] [2025-12-08T06:36:53.395Z] <<< [apiv2][body] GET https://firebasestorage.googleapis.com/v1alpha/projects/organically-2f124/defaultBucket {"name":"projects/organically-2f124/defaultBucket","location":"US-CENTRAL1","bucket":{"name":"projects/organically-2f124/buckets/organically-2f124.firebasestorage.app"},"storageClass":"REGIONAL"}
+[info] i  firebase.storage: checking src/firebase/storage.rules for compilation errors... 
+[debug] [2025-12-08T06:36:53.400Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:53.400Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:53.401Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/organically-2f124:test [none]
+[debug] [2025-12-08T06:36:53.401Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/organically-2f124:test [omitted]
+[debug] [2025-12-08T06:36:53.747Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/organically-2f124:test 200
+[debug] [2025-12-08T06:36:53.748Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/organically-2f124:test {}
+[info] ✔  firebase.storage: rules file src/firebase/storage.rules compiled successfully 
+[debug] [2025-12-08T06:36:53.749Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:53.749Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:53.749Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/organically-2f124/releases pageSize=10&pageToken=
+[debug] [2025-12-08T06:36:53.935Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/organically-2f124/releases 200
+[debug] [2025-12-08T06:36:53.935Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/organically-2f124/releases {"releases":[{"name":"projects/organically-2f124/releases/cloud.firestore","rulesetName":"projects/organically-2f124/rulesets/c69409f4-45a2-4f8b-a4ef-3b0051cee897","createTime":"2025-12-01T05:11:21.754877Z","updateTime":"2025-12-07T09:17:42.088256Z"},{"name":"projects/organically-2f124/releases/firebase.storage/organically-2f124.firebasestorage.app","rulesetName":"projects/organically-2f124/rulesets/7af2bc46-d2db-40c3-b45c-333535aad723","createTime":"2025-12-01T11:01:58.085017Z","updateTime":"2025-12-07T08:42:26.200310Z"}]}
+[debug] [2025-12-08T06:36:53.958Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:53.958Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:53.958Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/organically-2f124/rulesets/7af2bc46-d2db-40c3-b45c-333535aad723 [none]
+[debug] [2025-12-08T06:36:54.152Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/organically-2f124/rulesets/7af2bc46-d2db-40c3-b45c-333535aad723 200
+[debug] [2025-12-08T06:36:54.152Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/organically-2f124/rulesets/7af2bc46-d2db-40c3-b45c-333535aad723 [omitted]
+[info] i  storage: uploading rules src/firebase/storage.rules... 
+[debug] [2025-12-08T06:36:54.153Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:54.153Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:54.153Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/organically-2f124/rulesets [none]
+[debug] [2025-12-08T06:36:54.153Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/organically-2f124/rulesets [omitted]
+[debug] [2025-12-08T06:36:54.502Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/organically-2f124/rulesets 200
+[debug] [2025-12-08T06:36:54.503Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/organically-2f124/rulesets {"name":"projects/organically-2f124/rulesets/3b4ef014-212b-4668-9f9c-0d97fe4cb4da","source":{"files":[{"content":"rules_version = '2';\n\nservice firebase.storage {\n  match /b/{bucket}/o {\n    // Organization images\n    match /organization-images/{userId}/{organizationId}/{fileName} {\n      // Anyone can read organization images (public)\n      allow read: if true;\n      \n      // Only authenticated users can write their own organization images\n      allow write: if request.auth != null \n                   && request.auth.uid == userId\n                   && request.resource.size < 5 * 1024 * 1024 // 5MB max\n                   && request.resource.contentType.matches('image/.*');\n      \n      // Only the owner can delete their organization images\n      allow delete: if request.auth != null && request.auth.uid == userId;\n    }\n    \n    // Post media files (images and videos)\n    match /post-media/{organizationId}/{postId}/{fileName} {\n      // Anyone can read post media (for sharing/embedding)\n      allow read: if true;\n      \n      // Authenticated users can upload media\n      // Images: max 10MB, Videos: max 250MB\n      allow write: if request.auth != null\n                   && (\n                     // Images up to 10MB\n                     (request.resource.contentType.matches('image/.*')\n                      && request.resource.size < 10 * 1024 * 1024)\n                     ||\n                     // Videos up to 250MB\n                     (request.resource.contentType.matches('video/.*')\n                      && request.resource.size < 250 * 1024 * 1024)\n                   );\n      \n      // Authenticated users can delete media\n      allow delete: if request.auth != null;\n    }\n    \n    // Deny all other access\n    match /{allPaths=**} {\n      allow read, write: if false;\n    }\n  }\n}\n","name":"src/firebase/storage.rules"}]},"createTime":"2025-12-08T06:36:54.499167Z","metadata":{"services":["firebase.storage"]}}
+[debug] [2025-12-08T06:36:54.503Z] [rules] created ruleset projects/organically-2f124/rulesets/3b4ef014-212b-4668-9f9c-0d97fe4cb4da
+[debug] [2025-12-08T06:36:54.504Z] [rules] releasing firebase.storage/organically-2f124.firebasestorage.app with ruleset projects/organically-2f124/rulesets/3b4ef014-212b-4668-9f9c-0d97fe4cb4da
+[debug] [2025-12-08T06:36:54.504Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:54.504Z] Checked if tokens are valid: true, expires at: 1765179411827
+[debug] [2025-12-08T06:36:54.504Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/organically-2f124/releases/firebase.storage/organically-2f124.firebasestorage.app [none]
+[debug] [2025-12-08T06:36:54.504Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/organically-2f124/releases/firebase.storage/organically-2f124.firebasestorage.app {"release":{"name":"projects/organically-2f124/releases/firebase.storage/organically-2f124.firebasestorage.app","rulesetName":"projects/organically-2f124/rulesets/3b4ef014-212b-4668-9f9c-0d97fe4cb4da"}}
+[debug] [2025-12-08T06:36:54.817Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/organically-2f124/releases/firebase.storage/organically-2f124.firebasestorage.app 200
+[debug] [2025-12-08T06:36:54.818Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/organically-2f124/releases/firebase.storage/organically-2f124.firebasestorage.app {"name":"projects/organically-2f124/releases/firebase.storage/organically-2f124.firebasestorage.app","rulesetName":"projects/organically-2f124/rulesets/3b4ef014-212b-4668-9f9c-0d97fe4cb4da","createTime":"2025-12-01T11:01:58.085017Z","updateTime":"2025-12-08T06:36:54.803603Z"}
+[debug] [2025-12-08T06:36:54.818Z] [rules] updated release projects/organically-2f124/releases/firebase.storage/organically-2f124.firebasestorage.app
+[info] ✔  storage: released rules src/firebase/storage.rules to firebase.storage 
+[info] 
+[info] ✔  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/organically-2f124/overview
