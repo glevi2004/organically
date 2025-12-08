@@ -274,18 +274,25 @@ export async function deletePost(postId: string): Promise<void> {
 
 /**
  * Update post status
+ * Note: Users cannot set status to "posted" - only the server (Inngest) can do this
  */
 export async function updatePostStatus(
   postId: string,
   status: PostStatus
 ): Promise<void> {
   try {
-    await updatePost(postId, { status });
-
-    // If marking as posted, set postedDate
+    // Prevent users from manually setting status to "posted"
     if (status === "posted") {
-      await updatePost(postId, { postedDate: new Date() });
+      throw new Error("Posts can only be marked as posted by the system after publishing");
     }
+
+    // Check if post is already posted - cannot change from posted status
+    const existingPost = await getPost(postId);
+    if (existingPost?.status === "posted") {
+      throw new Error("Cannot change status of a published post");
+    }
+
+    await updatePost(postId, { status });
   } catch (error) {
     console.error("Error updating post status:", error);
     throw error;
@@ -309,11 +316,19 @@ export async function updatePostOrder(
 
 /**
  * Batch update post orders (used after drag and drop)
+ * Note: Users cannot set status to "posted" - only the server (Inngest) can do this
  */
 export async function reorderPosts(
   posts: Array<{ id: string; order: number; status?: PostStatus }>
 ): Promise<void> {
   try {
+    // Validate: users cannot set status to "posted"
+    for (const post of posts) {
+      if (post.status === "posted") {
+        throw new Error("Posts can only be marked as posted by the system after publishing");
+      }
+    }
+
     const batch = writeBatch(db);
     const now = Timestamp.fromDate(new Date());
 
@@ -324,14 +339,9 @@ export async function reorderPosts(
         updatedAt: now,
       };
 
-      // If status is provided, update it as well
+      // If status is provided, update it as well (never "posted" - validated above)
       if (post.status !== undefined) {
         updateData.status = post.status;
-
-        // If marking as posted, set postedDate
-        if (post.status === "posted") {
-          updateData.postedDate = now;
-        }
       }
 
       batch.update(docRef, updateData);
