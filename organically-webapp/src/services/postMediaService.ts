@@ -16,19 +16,34 @@ const MAX_VIDEO_SIZE = 250 * 1024 * 1024; // 250MB
 // Allowed MIME types
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
-  "image/jpg",
   "image/png",
   "image/webp",
   "image/gif",
+  "image/heic",
+  "image/heif",
 ];
-const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+const ALLOWED_VIDEO_TYPES = [
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "video/mov",
+];
 
 /**
  * Get the media type from a file
  */
 function getMediaType(file: File): MediaType | null {
+  // Check by MIME type
   if (ALLOWED_IMAGE_TYPES.includes(file.type)) return "image";
   if (ALLOWED_VIDEO_TYPES.includes(file.type)) return "video";
+  // Check if it starts with image/ or video/ (handles HEIC and other formats)
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  // Fallback: check by file extension
+  const ext = file.name.toLowerCase().split(".").pop();
+  if (["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"].includes(ext || ""))
+    return "image";
+  if (["mp4", "mov", "webm", "m4v"].includes(ext || "")) return "video";
   return null;
 }
 
@@ -44,7 +59,7 @@ export function validateMediaFile(file: File): {
   if (!mediaType) {
     return {
       valid: false,
-      error: `Invalid file type: ${file.type}. Allowed: JPEG, PNG, WebP, GIF, MP4, QuickTime, WebM`,
+      error: `Invalid file type: ${file.type}. Allowed: JPEG, PNG, WebP, GIF, HEIC, MP4, MOV, WebM`,
     };
   }
 
