@@ -11,8 +11,12 @@ import {
   Loader2,
   Plus,
   GripVertical,
+  Calendar as CalendarIcon,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
+
+type CalendarView = "week" | "month";
 import {
   getPostsByDateRange,
   updatePost,
@@ -128,7 +132,7 @@ function SortableCalendarPostCard({
               ) : null;
             })}
           </div>
-          <span className="truncate font-medium">{post.title}</span>
+          <span className="truncate font-medium">{post.content || "Untitled post"}</span>
         </div>
 
         {/* Drag Handle */}
@@ -170,14 +174,14 @@ function CalendarPostCardOverlay({ post }: { post: Post }) {
             ) : null;
           })}
         </div>
-        <span className="truncate font-medium">{post.title}</span>
+        <span className="truncate font-medium">{post.content || "Untitled post"}</span>
         <GripVertical className="w-3 h-3 shrink-0 opacity-70" />
       </div>
     </div>
   );
 }
 
-// Calendar Day Component (Droppable)
+// Calendar Day Component (Droppable) - for Month View
 interface CalendarDayProps {
   day: Date;
   posts: Post[];
@@ -245,12 +249,68 @@ function CalendarDay({
   );
 }
 
+// Week Day Cell Component (Droppable) - for Week View with taller cells
+interface WeekDayCellProps {
+  day: Date;
+  posts: Post[];
+  isToday: boolean;
+  onPostClick: (post: Post) => void;
+  isOver?: boolean;
+}
+
+function WeekDayCell({
+  day,
+  posts,
+  isToday,
+  onPostClick,
+  isOver,
+}: WeekDayCellProps) {
+  const dateKey = getDateKey(day);
+  const { setNodeRef, isOver: isOverDroppable } = useDroppable({
+    id: dateKey,
+  });
+
+  const sortedPosts = useMemo(
+    () => [...posts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [posts]
+  );
+
+  const showHighlight = isOver || isOverDroppable;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "min-h-[400px] p-3 border-r last:border-r-0 transition-colors",
+        isToday && "bg-blue-50 dark:bg-blue-950/20",
+        showHighlight && "bg-primary/10"
+      )}
+    >
+      <SortableContext
+        items={sortedPosts.map((p) => p.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="space-y-2">
+          {sortedPosts.map((post) => (
+            <SortableCalendarPostCard
+              key={post.id}
+              post={post}
+              onClick={() => onPostClick(post)}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </div>
+  );
+}
+
 export default function CalendarPage() {
   const { activeOrganization } = useOrganization();
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [view, setView] = useState<CalendarView>("week");
 
   // Modal state
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -279,25 +339,45 @@ export default function CalendarPage() {
     return { start, end };
   }, []);
 
+  // Get start and end of current week (Monday to Sunday)
+  const getWeekRange = useCallback((date: Date) => {
+    const start = new Date(date);
+    const dayOfWeek = start.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust to Monday
+    start.setDate(start.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    
+    return { start, end };
+  }, []);
+
+  // Get range based on current view
+  const getDateRange = useCallback((date: Date) => {
+    return view === "week" ? getWeekRange(date) : getMonthRange(date);
+  }, [view, getWeekRange, getMonthRange]);
+
   const loadPosts = useCallback(async () => {
     if (!activeOrganization) return;
 
     try {
       setLoadingPosts(true);
-      const { start, end } = getMonthRange(currentDate);
-      const monthPosts = await getPostsByDateRange(
+      const { start, end } = getDateRange(currentDate);
+      const fetchedPosts = await getPostsByDateRange(
         activeOrganization.id,
         start,
         end
       );
-      setPosts(monthPosts);
+      setPosts(fetchedPosts);
     } catch (error) {
       console.error("Error loading posts:", error);
       toast.error("Failed to load posts");
     } finally {
       setLoadingPosts(false);
     }
-  }, [activeOrganization, currentDate, getMonthRange]);
+  }, [activeOrganization, currentDate, getDateRange]);
 
   // Load posts for current month
   useEffect(() => {
@@ -360,6 +440,37 @@ export default function CalendarPage() {
     }
 
     return days;
+  };
+
+  // Get the current week's days
+  const getCurrentWeekDays = () => {
+    const { start } = getWeekRange(currentDate);
+    return getDaysInWeek(start);
+  };
+
+  // Navigation handlers
+  const navigatePrevious = () => {
+    const newDate = new Date(currentDate);
+    if (view === "week") {
+      newDate.setDate(newDate.getDate() - 7);
+    } else {
+      newDate.setMonth(newDate.getMonth() - 1);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const navigateNext = () => {
+    const newDate = new Date(currentDate);
+    if (view === "week") {
+      newDate.setDate(newDate.getDate() + 7);
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const navigateToday = () => {
+    setCurrentDate(new Date());
   };
 
   // Group posts by date key
@@ -562,10 +673,26 @@ export default function CalendarPage() {
   const overDateKey = getOverDateKey();
 
   const weeks = getWeeksInMonth();
-  const monthName = currentDate.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  const currentWeekDays = getCurrentWeekDays();
+  
+  // Format header based on view
+  const getHeaderText = () => {
+    if (view === "week") {
+      const { start, end } = getWeekRange(currentDate);
+      const startMonth = start.toLocaleDateString("en-US", { month: "short" });
+      const endMonth = end.toLocaleDateString("en-US", { month: "short" });
+      const year = end.getFullYear();
+      
+      if (startMonth === endMonth) {
+        return `${startMonth} ${start.getDate()} - ${end.getDate()}, ${year}`;
+      }
+      return `${startMonth} ${start.getDate()} - ${endMonth} ${end.getDate()}, ${year}`;
+    }
+    return currentDate.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+  };
 
   if (!activeOrganization) {
     return (
@@ -583,32 +710,61 @@ export default function CalendarPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => {
-              const newDate = new Date(currentDate);
-              newDate.setMonth(newDate.getMonth() - 1);
-              setCurrentDate(newDate);
-            }}
+            onClick={navigatePrevious}
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <h1 className="text-2xl font-bold">{monthName}</h1>
+          <h1 className="text-2xl font-bold min-w-[200px] text-center">{getHeaderText()}</h1>
           <Button
             variant="outline"
             size="icon"
-            onClick={() => {
-              const newDate = new Date(currentDate);
-              newDate.setMonth(newDate.getMonth() + 1);
-              setCurrentDate(newDate);
-            }}
+            onClick={navigateNext}
           >
             <ChevronRight className="w-4 h-4" />
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={navigateToday}
+          >
+            Today
+          </Button>
         </div>
 
-        <Button onClick={handleAddPost}>
-          <Plus className="w-4 h-4" />
-          Add Post
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex items-center rounded-lg border bg-muted p-1">
+            <button
+              onClick={() => setView("week")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                view === "week"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <CalendarDays className="w-4 h-4" />
+              Week
+            </button>
+            <button
+              onClick={() => setView("month")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                view === "month"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <CalendarIcon className="w-4 h-4" />
+              Month
+            </button>
+          </div>
+
+          <Button onClick={handleAddPost}>
+            <Plus className="w-4 h-4" />
+            Add Post
+          </Button>
+        </div>
       </div>
 
       {/* Post Modal (Create/Edit) */}
@@ -635,14 +791,47 @@ export default function CalendarPage() {
         <div className="border rounded-lg overflow-hidden">
           {/* Weekday Headers */}
           <div className="grid grid-cols-7 border-b bg-muted">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-              <div
-                key={day}
-                className="p-2 text-center text-sm font-medium border-r last:border-r-0"
-              >
-                {day}
-              </div>
-            ))}
+            {view === "week" ? (
+              // Week view - show day names with dates
+              currentWeekDays.map((day, index) => {
+                const isToday =
+                  day.getDate() === new Date().getDate() &&
+                  day.getMonth() === new Date().getMonth() &&
+                  day.getFullYear() === new Date().getFullYear();
+                return (
+                  <div
+                    key={index}
+                    className={cn(
+                      "p-2 text-center border-r last:border-r-0",
+                      isToday && "bg-blue-50 dark:bg-blue-950/30"
+                    )}
+                  >
+                    <div className="text-xs text-muted-foreground">
+                      {day.toLocaleDateString("en-US", { weekday: "short" })}
+                    </div>
+                    <div
+                      className={cn(
+                        "text-lg font-semibold",
+                        isToday &&
+                          "bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto"
+                      )}
+                    >
+                      {day.getDate()}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              // Month view - just day names
+              ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                <div
+                  key={day}
+                  className="p-2 text-center text-sm font-medium border-r last:border-r-0"
+                >
+                  {day}
+                </div>
+              ))
+            )}
           </div>
 
           {/* Calendar Days */}
@@ -650,7 +839,31 @@ export default function CalendarPage() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
+          ) : view === "week" ? (
+            // Week View - single row with taller cells
+            <div className="grid grid-cols-7">
+              {currentWeekDays.map((day, dayIndex) => {
+                const dateKey = getDateKey(day);
+                const dayPosts = postsByDate[dateKey] || [];
+                const isToday =
+                  day.getDate() === new Date().getDate() &&
+                  day.getMonth() === new Date().getMonth() &&
+                  day.getFullYear() === new Date().getFullYear();
+
+                return (
+                  <WeekDayCell
+                    key={dayIndex}
+                    day={day}
+                    posts={dayPosts}
+                    isToday={isToday}
+                    onPostClick={handleOpenPost}
+                    isOver={overDateKey === dateKey && activeId !== null}
+                  />
+                );
+              })}
+            </div>
           ) : (
+            // Month View - multiple rows
             weeks.map((week, weekIndex) => {
               const days = getDaysInWeek(week);
               return (
