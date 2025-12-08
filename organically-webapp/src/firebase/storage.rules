@@ -17,6 +17,28 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
     
+    // Post media files (images and videos)
+    match /post-media/{organizationId}/{postId}/{fileName} {
+      // Anyone can read post media (for sharing/embedding)
+      allow read: if true;
+      
+      // Authenticated users can upload media
+      // Images: max 10MB, Videos: max 250MB
+      allow write: if request.auth != null
+                   && (
+                     // Images up to 10MB
+                     (request.resource.contentType.matches('image/.*')
+                      && request.resource.size < 10 * 1024 * 1024)
+                     ||
+                     // Videos up to 250MB
+                     (request.resource.contentType.matches('video/.*')
+                      && request.resource.size < 250 * 1024 * 1024)
+                   );
+      
+      // Authenticated users can delete media
+      allow delete: if request.auth != null;
+    }
+    
     // Deny all other access
     match /{allPaths=**} {
       allow read, write: if false;
