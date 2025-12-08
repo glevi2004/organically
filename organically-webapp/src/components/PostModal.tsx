@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, Trash2 } from "lucide-react";
+import { Loader2, Calendar, Trash2, Send, Instagram } from "lucide-react";
 import { toast } from "sonner";
 import {
   createPost,
@@ -41,6 +41,7 @@ import {
   MediaUpload,
 } from "@/components/instagram-preview";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { useRouter } from "next/navigation";
 
 // Status configuration with colors
 const statusConfig: Record<
@@ -73,10 +74,11 @@ const statusConfig: Record<
   },
 };
 
+// Status groups for the dropdown - "posted" is NOT included because only Inngest can set that
 const statusGroups = [
   { label: "Planning", statuses: ["idea"] as PostStatus[] },
   { label: "In Progress", statuses: ["draft"] as PostStatus[] },
-  { label: "Complete", statuses: ["ready", "posted"] as PostStatus[] },
+  { label: "Complete", statuses: ["ready"] as PostStatus[] },
 ];
 
 interface PostModalProps {
@@ -111,6 +113,7 @@ export function PostModal({
   userId,
 }: PostModalProps) {
   const { activeOrganization } = useOrganization();
+  const router = useRouter();
   const isEditMode = !!post;
   const [editedPost, setEditedPost] = useState<
     Omit<Post, "id" | "createdAt" | "updatedAt"> & { id?: string }
@@ -118,7 +121,13 @@ export function PostModal({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+
+  // Check if Instagram is connected
+  const hasInstagramConnected = activeOrganization?.channels?.some(
+    (c) => c.provider === "instagram" && c.isActive
+  );
 
   // Media state (includes local files pending upload)
   const [localMedia, setLocalMedia] = useState<LocalMedia[]>([]);
@@ -269,6 +278,18 @@ export function PostModal({
   const handleStatusChange = async (newStatus: PostStatus) => {
     if (!editedPost) return;
 
+    // Prevent changing status of a posted post
+    if (editedPost.status === "posted") {
+      toast.error("Cannot change status of a published post");
+      return;
+    }
+
+    // Prevent manually setting status to "posted" (only Inngest can do this)
+    if (newStatus === "posted") {
+      toast.error("Posts can only be marked as posted after publishing");
+      return;
+    }
+
     if (isEditMode && editedPost.id) {
       try {
         await reorderPosts([
@@ -277,6 +298,43 @@ export function PostModal({
         const updatedPost = { ...editedPost, status: newStatus };
         setEditedPost(updatedPost);
         onPostUpdated?.(updatedPost as Post);
+
+        // If changing to "ready", trigger scheduling if conditions are met
+        if (newStatus === "ready") {
+          const uploadedMedia = localMedia.filter(
+            (m) => m.isUploaded && !isLocalBlobUrl(m.url)
+          );
+          const scheduledTime = editedPost.scheduledDate
+            ? new Date(editedPost.scheduledDate)
+            : null;
+          const minScheduleTime = Date.now() + 5 * 60 * 1000;
+
+          if (
+            scheduledTime &&
+            scheduledTime.getTime() >= minScheduleTime &&
+            hasInstagramConnected &&
+            uploadedMedia.length > 0
+          ) {
+            // Schedule the post
+            const response = await fetch("/api/instagram/schedule", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                postId: editedPost.id,
+                organizationId,
+                scheduledDate: scheduledTime.toISOString(),
+              }),
+            });
+
+            if (response.ok) {
+              toast.success(
+                `Status changed to Ready and scheduled for ${scheduledTime.toLocaleDateString()} at ${scheduledTime.toLocaleTimeString()}`
+              );
+              return;
+            }
+          }
+        }
+
         toast.success("Status updated!");
       } catch (error) {
         console.error("Error updating status:", error);
@@ -325,11 +383,10 @@ export function PostModal({
 
       // Upload pending media files
       const pendingMedia = localMedia.filter((m) => m.file && !m.isUploaded);
+      let uploadedMedia: PostMedia[] = [];
 
       if (pendingMedia.length > 0) {
         setUploadProgress(`Uploading 0/${pendingMedia.length} files...`);
-
-        const uploadedMedia: PostMedia[] = [];
 
         for (let i = 0; i < pendingMedia.length; i++) {
           const media = pendingMedia[i];
@@ -355,6 +412,42 @@ export function PostModal({
         if (uploadedMedia.length > 0) {
           await updatePost(newPost.id, { media: uploadedMedia });
           newPost.media = uploadedMedia;
+        }
+      }
+
+      // Check if we should schedule the post to Inngest
+      // Conditions: status is "ready", has scheduled date 5+ min in future, Instagram connected, has media
+      const scheduledTime = editedPost.scheduledDate
+        ? new Date(editedPost.scheduledDate)
+        : null;
+      const minScheduleTime = Date.now() + 5 * 60 * 1000;
+      const shouldSchedule =
+        editedPost.status === "ready" &&
+        scheduledTime &&
+        scheduledTime.getTime() >= minScheduleTime &&
+        hasInstagramConnected &&
+        uploadedMedia.length > 0;
+
+      if (shouldSchedule) {
+        setUploadProgress("Scheduling post...");
+
+        const response = await fetch("/api/instagram/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postId: newPost.id,
+            organizationId,
+            scheduledDate: scheduledTime.toISOString(),
+          }),
+        });
+
+        if (response.ok) {
+          onPostCreated?.(newPost);
+          onOpenChange(false);
+          toast.success(
+            `Post created and scheduled for ${scheduledTime.toLocaleDateString()} at ${scheduledTime.toLocaleTimeString()}`
+          );
+          return;
         }
       }
 
@@ -400,7 +493,71 @@ export function PostModal({
     setEditedPost({ ...editedPost, media: persistedMedia });
   };
 
+  // Handle publishing to Instagram
+  const handlePublishToInstagram = async () => {
+    if (!editedPost || !editedPost.id) {
+      toast.error("Please save the post first");
+      return;
+    }
+
+    if (!hasInstagramConnected) {
+      router.push(`/organization/${organizationId}/settings`);
+      return;
+    }
+
+    // Check if post has media
+    const uploadedMedia = localMedia.filter(
+      (m) => m.isUploaded && !isLocalBlobUrl(m.url)
+    );
+    if (uploadedMedia.length === 0) {
+      toast.error("Please add and save media before publishing");
+      return;
+    }
+
+    try {
+      setIsPublishing(true);
+
+      const response = await fetch("/api/instagram/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId: editedPost.id,
+          organizationId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to publish");
+      }
+
+      // Update local state
+      const updatedPost = {
+        ...editedPost,
+        status: "posted" as PostStatus,
+        instagramMediaId: result.instagramMediaId,
+        publishedAt: new Date(),
+      };
+      setEditedPost(updatedPost);
+      onPostUpdated?.(updatedPost as Post);
+
+      toast.success("Published to Instagram!");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Publish error:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to publish to Instagram"
+      );
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   // Handle saving media for existing posts (edit mode)
+  // Also handles scheduling if a future date is set
   const handleSaveWithMedia = async () => {
     if (!editedPost || !editedPost.id) return;
 
@@ -412,6 +569,18 @@ export function PostModal({
 
       // Get already uploaded media
       const existingMedia = localMedia.filter((m) => m.isUploaded || !m.file);
+
+      let allMedia: PostMedia[] = existingMedia.map((m) => ({
+        id: m.id,
+        url: m.url,
+        type: m.type,
+        thumbnailUrl: m.thumbnailUrl,
+        width: m.width,
+        height: m.height,
+        order: m.order,
+        storagePath: m.storagePath,
+        duration: m.duration,
+      }));
 
       if (pendingMedia.length > 0) {
         setUploadProgress(`Uploading 0/${pendingMedia.length} files...`);
@@ -439,20 +608,9 @@ export function PostModal({
         }
 
         // Combine existing and newly uploaded media
-        const allMedia: PostMedia[] = [
-          ...existingMedia.map((m) => ({
-            id: m.id,
-            url: m.url,
-            type: m.type,
-            thumbnailUrl: m.thumbnailUrl,
-            width: m.width,
-            height: m.height,
-            order: m.order,
-            storagePath: m.storagePath,
-            duration: m.duration,
-          })),
-          ...newlyUploaded,
-        ].sort((a, b) => a.order - b.order);
+        allMedia = [...allMedia, ...newlyUploaded].sort(
+          (a, b) => a.order - b.order
+        );
 
         // Update post with all media
         await updatePost(editedPost.id, { media: allMedia });
@@ -467,10 +625,62 @@ export function PostModal({
       // Also save other fields
       await debouncedSave(editedPost);
 
-      toast.success("Post saved!");
+      // Check if we should schedule the post
+      // Conditions: status is "ready", has scheduled date at least 5 min in future, Instagram connected, has uploaded media
+      const uploadedMedia = [...existingMedia, ...allMedia].filter(
+        (m) => !isLocalBlobUrl(m.url)
+      );
+      const scheduledTime = editedPost.scheduledDate
+        ? new Date(editedPost.scheduledDate)
+        : null;
+      const minScheduleTime = Date.now() + 5 * 60 * 1000; // 5 minutes from now
+      const shouldSchedule =
+        editedPost.status === "ready" && // Only schedule when status is "ready"
+        scheduledTime &&
+        scheduledTime.getTime() >= minScheduleTime &&
+        hasInstagramConnected &&
+        uploadedMedia.length > 0;
+
+      if (shouldSchedule) {
+        setUploadProgress("Scheduling post...");
+
+        const response = await fetch("/api/instagram/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postId: editedPost.id,
+            organizationId,
+            scheduledDate: scheduledTime.toISOString(),
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to schedule post");
+        }
+
+        // Update local state
+        const updatedPost = {
+          ...editedPost,
+          status: "ready" as PostStatus,
+          scheduledDate: scheduledTime,
+          media: allMedia,
+        };
+        setEditedPost(updatedPost);
+        onPostUpdated?.(updatedPost as Post);
+
+        toast.success(
+          `Saved and scheduled for ${scheduledTime.toLocaleDateString()} at ${scheduledTime.toLocaleTimeString()}`
+        );
+      } else {
+        toast.success("Post saved!");
+      }
     } catch (error) {
       console.error("Error saving post:", error);
-      toast.error("Failed to save post");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save post"
+      );
     } finally {
       setIsSaving(false);
       setUploadProgress(null);
@@ -605,13 +815,33 @@ export function PostModal({
                 <input
                   id="schedule-input"
                   type="datetime-local"
-                  value={
-                    editedPost.scheduledDate
+                  min={(() => {
+                    const minDate = new Date(Date.now() + 5 * 60 * 1000);
+                    const year = minDate.getFullYear();
+                    const month = String(minDate.getMonth() + 1).padStart(
+                      2,
+                      "0"
+                    );
+                    const day = String(minDate.getDate()).padStart(2, "0");
+                    const hours = String(minDate.getHours()).padStart(2, "0");
+                    const minutes = String(minDate.getMinutes()).padStart(
+                      2,
+                      "0"
+                    );
+                    return `${year}-${month}-${day}T${hours}:${minutes}`;
+                  })()}
+                  value={(() => {
+                    // Use scheduled date if set, otherwise default to 5 min from now
+                    const d = editedPost.scheduledDate
                       ? new Date(editedPost.scheduledDate)
-                          .toISOString()
-                          .slice(0, 16)
-                      : ""
-                  }
+                      : new Date(Date.now() + 5 * 60 * 1000);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, "0");
+                    const day = String(d.getDate()).padStart(2, "0");
+                    const hours = String(d.getHours()).padStart(2, "0");
+                    const minutes = String(d.getMinutes()).padStart(2, "0");
+                    return `${year}-${month}-${day}T${hours}:${minutes}`;
+                  })()}
                   onChange={(e) => {
                     setEditedPost({
                       ...editedPost,
@@ -668,45 +898,68 @@ export function PostModal({
             {/* Bottom Actions */}
             <div className="p-4 border-t border-border flex items-center justify-end">
               <div className="flex items-center gap-2">
-                {uploadProgress && (
-                  <span className="text-sm text-muted-foreground mr-2">
-                    {uploadProgress}
-                  </span>
-                )}
                 {isEditMode ? (
                   <>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleSaveWithMedia}
-                      disabled={isSaving}
+                      disabled={isSaving || isPublishing}
                     >
                       {isSaving ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Saving...
+                          {uploadProgress || "Saving..."}
                         </>
                       ) : (
-                        "Save as draft"
+                        "Save"
                       )}
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        await handleStatusChange("ready");
-                        await handleSaveWithMedia();
-                      }}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        "Add to calendar"
-                      )}
-                    </Button>
+                    {/* Publish Button */}
+                    {editedPost.status === "posted" ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled
+                        className="gap-1.5"
+                      >
+                        <Instagram className="w-4 h-4" />
+                        Published
+                      </Button>
+                    ) : hasInstagramConnected ? (
+                      <Button
+                        size="sm"
+                        onClick={handlePublishToInstagram}
+                        disabled={isSaving || isPublishing}
+                        className="gap-1.5 bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                      >
+                        {isPublishing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Publishing...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Publish
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          router.push(
+                            `/organization/${organizationId}/settings`
+                          )
+                        }
+                        className="gap-1.5"
+                      >
+                        <Instagram className="w-4 h-4" />
+                        Connect Instagram
+                      </Button>
+                    )}
                   </>
                 ) : (
                   <>
