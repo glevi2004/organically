@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { PostEditor, SaveStatus } from "@/components/PostEditor";
 import {
   DropdownMenu,
@@ -13,12 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import {
-  Loader2,
-  CircleDot,
-  Calendar,
-  Trash2,
-} from "lucide-react";
+import { Loader2, Calendar, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   createPost,
@@ -26,13 +20,26 @@ import {
   reorderPosts,
   deletePost,
 } from "@/services/postService";
-import { Post, PostStatus, PostType, PostPlatform, PostMedia } from "@/types/post";
+import {
+  uploadPostMedia,
+  deletePostMedia,
+  isLocalBlobUrl,
+} from "@/services/postMediaService";
+import {
+  Post,
+  PostStatus,
+  PostPlatform,
+  PostMedia,
+  LocalMedia,
+} from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/organization-constants";
-import { POST_TYPES, getAllowedPlatformsForType } from "@/lib/post-constants";
 import { cn } from "@/lib/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { InstagramEmbedPreview, MediaUpload, IPhoneFrame } from "@/components/instagram-preview";
+import {
+  InstagramPhonePreview,
+  MediaUpload,
+} from "@/components/instagram-preview";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
 // Status configuration with colors
@@ -86,7 +93,6 @@ interface PostModalProps {
 const getDefaultPost = (): Omit<Post, "id" | "createdAt" | "updatedAt"> => ({
   organizationId: "",
   userId: "",
-  title: "",
   content: "",
   platforms: [],
   status: "idea",
@@ -112,9 +118,10 @@ export function PostModal({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
-  // Media state (local blob URLs until post is saved)
-  const [localMedia, setLocalMedia] = useState<PostMedia[]>([]);
+  // Media state (includes local files pending upload)
+  const [localMedia, setLocalMedia] = useState<LocalMedia[]>([]);
 
   // Refs for debounced save
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -122,10 +129,12 @@ export function PostModal({
   const lastSavedRef = useRef<string>("");
 
   // Get username from channel or organization
-  const username = activeOrganization?.channels?.[0]?.accountName || 
-    activeOrganization?.name?.toLowerCase().replace(/\s+/g, '') || 
+  const username =
+    activeOrganization?.channels?.[0]?.accountName ||
+    activeOrganization?.name?.toLowerCase().replace(/\s+/g, "") ||
     "username";
-  const profileImage = activeOrganization?.channels?.[0]?.profileImageUrl || 
+  const profileImage =
+    activeOrganization?.channels?.[0]?.profileImageUrl ||
     activeOrganization?.imageUrl;
 
   // Initialize edited post when post changes or modal opens
@@ -133,13 +142,17 @@ export function PostModal({
     if (open) {
       if (post) {
         setEditedPost(post);
-        setLocalMedia(post.media || []);
+        // Mark existing media as already uploaded
+        setLocalMedia(
+          (post.media || []).map((m) => ({
+            ...m,
+            isUploaded: true,
+          }))
+        );
         lastSavedRef.current = JSON.stringify({
-          title: post.title,
           content: post.content,
           scheduledDate: post.scheduledDate?.getTime(),
           status: post.status,
-          type: post.type,
           platforms: post.platforms,
         });
       } else {
@@ -152,6 +165,7 @@ export function PostModal({
         setLocalMedia([]);
         lastSavedRef.current = "";
       }
+      setUploadProgress(null);
     }
   }, [post, open, organizationId, userId]);
 
@@ -189,11 +203,9 @@ export function PostModal({
       }
 
       const snapshot = JSON.stringify({
-        title: postToSave.title,
         content: postToSave.content,
         scheduledDate: postToSave.scheduledDate?.getTime(),
         status: postToSave.status,
-        type: postToSave.type,
         platforms: postToSave.platforms,
       });
 
@@ -204,10 +216,8 @@ export function PostModal({
       try {
         setSaveStatus("saving");
         await updatePost(postToSave.id, {
-          title: postToSave.title,
           content: postToSave.content,
           scheduledDate: postToSave.scheduledDate,
-          type: postToSave.type,
           platforms: postToSave.platforms,
         });
         lastSavedRef.current = snapshot;
@@ -295,10 +305,6 @@ export function PostModal({
   };
 
   const handleCreate = async () => {
-    if (!editedPost.title.trim()) {
-      toast.error("Please enter a title");
-      return;
-    }
     if (editedPost.platforms.length === 0) {
       toast.error("Please select at least one platform");
       return;
@@ -306,17 +312,52 @@ export function PostModal({
 
     try {
       setIsSaving(true);
+
+      // First create the post without media to get an ID
       const newPost = await createPost({
         organizationId,
         userId,
-        title: editedPost.title.trim(),
         content: editedPost.content.trim(),
         platforms: editedPost.platforms,
-        type: editedPost.type,
         status: editedPost.status,
         scheduledDate: editedPost.scheduledDate,
-        media: localMedia, // Include media
       });
+
+      // Upload pending media files
+      const pendingMedia = localMedia.filter((m) => m.file && !m.isUploaded);
+
+      if (pendingMedia.length > 0) {
+        setUploadProgress(`Uploading 0/${pendingMedia.length} files...`);
+
+        const uploadedMedia: PostMedia[] = [];
+
+        for (let i = 0; i < pendingMedia.length; i++) {
+          const media = pendingMedia[i];
+          setUploadProgress(
+            `Uploading ${i + 1}/${pendingMedia.length} files...`
+          );
+
+          try {
+            const uploaded = await uploadPostMedia(
+              organizationId,
+              newPost.id,
+              media.file!,
+              media.order
+            );
+            uploadedMedia.push(uploaded);
+          } catch (error) {
+            console.error(`Failed to upload ${media.file?.name}:`, error);
+            toast.error(`Failed to upload ${media.file?.name}`);
+          }
+        }
+
+        // Update post with uploaded media URLs
+        if (uploadedMedia.length > 0) {
+          await updatePost(newPost.id, { media: uploadedMedia });
+          newPost.media = uploadedMedia;
+        }
+      }
+
       onPostCreated?.(newPost);
       onOpenChange(false);
       toast.success("Post created!");
@@ -325,6 +366,7 @@ export function PostModal({
       toast.error("Failed to create post");
     } finally {
       setIsSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -341,9 +383,98 @@ export function PostModal({
     setEditedPost(updatedPost);
   };
 
-  const handleMediaChange = (media: PostMedia[]) => {
+  const handleMediaChange = (media: LocalMedia[]) => {
     setLocalMedia(media);
-    setEditedPost({ ...editedPost, media });
+    // Only store non-local media in editedPost (for display purposes)
+    const persistedMedia: PostMedia[] = media.map((m) => ({
+      id: m.id,
+      url: m.url,
+      type: m.type,
+      thumbnailUrl: m.thumbnailUrl,
+      width: m.width,
+      height: m.height,
+      order: m.order,
+      storagePath: m.storagePath,
+      duration: m.duration,
+    }));
+    setEditedPost({ ...editedPost, media: persistedMedia });
+  };
+
+  // Handle saving media for existing posts (edit mode)
+  const handleSaveWithMedia = async () => {
+    if (!editedPost || !editedPost.id) return;
+
+    try {
+      setIsSaving(true);
+
+      // Get pending media that needs upload
+      const pendingMedia = localMedia.filter((m) => m.file && !m.isUploaded);
+
+      // Get already uploaded media
+      const existingMedia = localMedia.filter((m) => m.isUploaded || !m.file);
+
+      if (pendingMedia.length > 0) {
+        setUploadProgress(`Uploading 0/${pendingMedia.length} files...`);
+
+        const newlyUploaded: PostMedia[] = [];
+
+        for (let i = 0; i < pendingMedia.length; i++) {
+          const media = pendingMedia[i];
+          setUploadProgress(
+            `Uploading ${i + 1}/${pendingMedia.length} files...`
+          );
+
+          try {
+            const uploaded = await uploadPostMedia(
+              organizationId,
+              editedPost.id,
+              media.file!,
+              media.order
+            );
+            newlyUploaded.push(uploaded);
+          } catch (error) {
+            console.error(`Failed to upload ${media.file?.name}:`, error);
+            toast.error(`Failed to upload ${media.file?.name}`);
+          }
+        }
+
+        // Combine existing and newly uploaded media
+        const allMedia: PostMedia[] = [
+          ...existingMedia.map((m) => ({
+            id: m.id,
+            url: m.url,
+            type: m.type,
+            thumbnailUrl: m.thumbnailUrl,
+            width: m.width,
+            height: m.height,
+            order: m.order,
+            storagePath: m.storagePath,
+            duration: m.duration,
+          })),
+          ...newlyUploaded,
+        ].sort((a, b) => a.order - b.order);
+
+        // Update post with all media
+        await updatePost(editedPost.id, { media: allMedia });
+
+        // Update local state
+        setLocalMedia(allMedia.map((m) => ({ ...m, isUploaded: true })));
+        setEditedPost({ ...editedPost, media: allMedia });
+
+        onPostUpdated?.({ ...editedPost, media: allMedia } as Post);
+      }
+
+      // Also save other fields
+      await debouncedSave(editedPost);
+
+      toast.success("Post saved!");
+    } catch (error) {
+      console.error("Error saving post:", error);
+      toast.error("Failed to save post");
+    } finally {
+      setIsSaving(false);
+      setUploadProgress(null);
+    }
   };
 
   if (!editedPost) return null;
@@ -365,27 +496,12 @@ export function PostModal({
             </div>
 
             {/* Settings Section */}
-            <div className="p-4 border-b border-border space-y-4">
-              {/* Title Input */}
-              <Input
-                value={editedPost.title}
-                onChange={(e) =>
-                  setEditedPost({ ...editedPost, title: e.target.value })
-                }
-                onBlur={handleFieldSave}
-                placeholder="Post title..."
-                className="text-lg font-medium"
-              />
-
+            <div className="p-4 border-b border-border">
               {/* Inline Settings Row */}
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Platform Icons */}
                 <div className="flex items-center gap-1">
-                  {PLATFORMS.filter((p) =>
-                    getAllowedPlatformsForType(editedPost.type).includes(
-                      p.id as PostPlatform
-                    )
-                  ).map((platform) => {
+                  {PLATFORMS.map((platform) => {
                     const isSelected = editedPost.platforms.includes(
                       platform.id as PostPlatform
                     );
@@ -471,54 +587,12 @@ export function PostModal({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Type Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">
-                      <CircleDot className="w-3 h-3" />
-                      {editedPost.type
-                        ? POST_TYPES.find((t) => t.id === editedPost.type)
-                            ?.label
-                        : "Type"}
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem
-                      onClick={() => setEditedPost({ ...editedPost, type: undefined })}
-                    >
-                      None
-                    </DropdownMenuItem>
-                    {POST_TYPES.map((type) => (
-                      <DropdownMenuItem
-                        key={type.id}
-                        onClick={() => {
-                          const newAllowedPlatforms = getAllowedPlatformsForType(
-                            type.id as PostType
-                          );
-                          const filteredPlatforms = editedPost.platforms.filter(
-                            (p) => newAllowedPlatforms.includes(p)
-                          );
-                          setEditedPost({
-                            ...editedPost,
-                            type: type.id as PostType,
-                            platforms:
-                              filteredPlatforms.length === 0 &&
-                              newAllowedPlatforms.length > 0
-                                ? [newAllowedPlatforms[0]]
-                                : filteredPlatforms,
-                          });
-                        }}
-                      >
-                        {type.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
                 {/* Scheduled Date */}
                 <button
                   onClick={() => {
-                    const input = document.getElementById("schedule-input") as HTMLInputElement;
+                    const input = document.getElementById(
+                      "schedule-input"
+                    ) as HTMLInputElement;
                     input?.showPicker?.();
                   }}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
@@ -594,23 +668,44 @@ export function PostModal({
             {/* Bottom Actions */}
             <div className="p-4 border-t border-border flex items-center justify-end">
               <div className="flex items-center gap-2">
+                {uploadProgress && (
+                  <span className="text-sm text-muted-foreground mr-2">
+                    {uploadProgress}
+                  </span>
+                )}
                 {isEditMode ? (
                   <>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleFieldSave}
+                      onClick={handleSaveWithMedia}
+                      disabled={isSaving}
                     >
-                      Save as draft
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save as draft"
+                      )}
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => {
-                        handleStatusChange("ready");
-                        handleFieldSave();
+                      onClick={async () => {
+                        await handleStatusChange("ready");
+                        await handleSaveWithMedia();
                       }}
+                      disabled={isSaving}
                     >
-                      Add to calendar
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Add to calendar"
+                      )}
                     </Button>
                   </>
                 ) : (
@@ -623,11 +718,15 @@ export function PostModal({
                     >
                       Cancel
                     </Button>
-                    <Button size="sm" onClick={handleCreate} disabled={isSaving}>
+                    <Button
+                      size="sm"
+                      onClick={handleCreate}
+                      disabled={isSaving}
+                    >
                       {isSaving ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Creating...
+                          {uploadProgress || "Creating..."}
                         </>
                       ) : (
                         "Create Post"
@@ -641,19 +740,14 @@ export function PostModal({
 
           {/* Right Side - Instagram Embed Preview */}
           <div className="flex flex-col min-w-0 bg-muted/30 p-4 overflow-y-auto">
-            <div className="flex-1 flex items-center justify-center">
-              <IPhoneFrame scale={0.6} screenBackground="transparent">
-                <div className="h-full overflow-y-auto bg-white dark:bg-black">
-                  <InstagramEmbedPreview
-                    media={localMedia}
-                    caption={editedPost.content || editedPost.title}
-                    username={username}
-                    profileImage={profileImage || undefined}
-                    width="100%"
-                    captioned
-                  />
-                </div>
-              </IPhoneFrame>
+            <div className="flex-1 flex items-start justify-center">
+              <InstagramPhonePreview
+                media={localMedia}
+                caption={editedPost.content}
+                username={username}
+                profileImage={profileImage || undefined}
+                scale={0.6}
+              />
             </div>
           </div>
         </div>
