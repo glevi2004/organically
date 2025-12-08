@@ -37,6 +37,9 @@ export interface Post {
   hashtags?: string[];
   createdAt: Date;
   updatedAt: Date;
+  // Instagram publishing fields
+  instagramMediaId?: string; // Instagram media ID after publishing
+  publishedAt?: Date; // When the post was published to Instagram
 }
 
 export interface CreatePostInput {
