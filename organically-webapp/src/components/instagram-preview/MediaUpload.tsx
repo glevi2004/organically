@@ -2,11 +2,12 @@
 
 import { useRef, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { PostMedia, MediaType } from "@/types/post";
-import { ImagePlus, X, Play, GripVertical, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { LocalMedia, MediaType } from "@/types/post";
+import { ImagePlus, X, Play, GripVertical, Loader2, Cloud, CloudOff } from "lucide-react";
 import { nanoid } from "nanoid";
 import Image from "next/image";
+import { toast } from "sonner";
+import { validateMediaFile } from "@/services/postMediaService";
 
 // DnD Kit imports
 import {
@@ -28,14 +29,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for videos
 const MAX_FILES = 10;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 
 interface MediaUploadProps {
-  media: PostMedia[];
-  onChange: (media: PostMedia[]) => void;
+  media: LocalMedia[];
+  onChange: (media: LocalMedia[]) => void;
   maxFiles?: number;
   className?: string;
 }
@@ -45,7 +45,7 @@ function SortableMediaItem({
   item,
   onRemove,
 }: {
-  item: PostMedia;
+  item: LocalMedia;
   onRemove: () => void;
 }) {
   const {
@@ -61,6 +61,8 @@ function SortableMediaItem({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const isUploaded = item.isUploaded || (!item.file && !item.url.startsWith("blob:"));
 
   return (
     <div
@@ -79,6 +81,7 @@ function SortableMediaItem({
               alt="Video thumbnail"
               fill
               className="object-cover"
+              unoptimized={item.thumbnailUrl.startsWith("data:")}
             />
           ) : (
             <video src={item.url} className="w-full h-full object-cover" muted />
@@ -88,7 +91,13 @@ function SortableMediaItem({
           </div>
         </>
       ) : (
-        <Image src={item.url} alt="Media" fill className="object-cover" />
+        <Image 
+          src={item.url} 
+          alt="Media" 
+          fill 
+          className="object-cover"
+          unoptimized={item.url.startsWith("blob:")}
+        />
       )}
 
       {/* Drag handle */}
@@ -108,6 +117,19 @@ function SortableMediaItem({
         <X className="w-3 h-3 text-white" />
       </button>
 
+      {/* Upload status indicator */}
+      <div className="absolute bottom-1 left-1">
+        {isUploaded ? (
+          <div className="p-1 rounded bg-green-500/80" title="Uploaded to cloud">
+            <Cloud className="w-2.5 h-2.5 text-white" />
+          </div>
+        ) : (
+          <div className="p-1 rounded bg-yellow-500/80" title="Pending upload">
+            <CloudOff className="w-2.5 h-2.5 text-white" />
+          </div>
+        )}
+      </div>
+
       {/* Order indicator */}
       <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-black/50 text-white text-[10px] flex items-center justify-center">
         {item.order + 1}
@@ -117,7 +139,7 @@ function SortableMediaItem({
 }
 
 // Drag overlay item
-function MediaItemOverlay({ item }: { item: PostMedia }) {
+function MediaItemOverlay({ item }: { item: LocalMedia }) {
   return (
     <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted shadow-xl ring-2 ring-primary">
       {item.type === "video" ? (
@@ -128,6 +150,7 @@ function MediaItemOverlay({ item }: { item: PostMedia }) {
               alt="Video thumbnail"
               fill
               className="object-cover"
+              unoptimized={item.thumbnailUrl.startsWith("data:")}
             />
           ) : (
             <video src={item.url} className="w-full h-full object-cover" muted />
@@ -137,7 +160,13 @@ function MediaItemOverlay({ item }: { item: PostMedia }) {
           </div>
         </>
       ) : (
-        <Image src={item.url} alt="Media" fill className="object-cover" />
+        <Image 
+          src={item.url} 
+          alt="Media" 
+          fill 
+          className="object-cover"
+          unoptimized={item.url.startsWith("blob:")}
+        />
       )}
     </div>
   );
@@ -150,7 +179,7 @@ export function MediaUpload({
   className,
 }: MediaUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -178,7 +207,7 @@ export function MediaUpload({
       video.playsInline = true;
 
       video.onloadeddata = () => {
-        video.currentTime = 1; // Seek to 1 second
+        video.currentTime = Math.min(1, video.duration); // Seek to 1 second or end
       };
 
       video.onseeked = () => {
@@ -204,37 +233,65 @@ export function MediaUpload({
     });
   };
 
+  const getVideoDuration = (file: File): Promise<number | undefined> => {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(video.src);
+        resolve(video.duration);
+      };
+
+      video.onerror = () => {
+        URL.revokeObjectURL(video.src);
+        resolve(undefined);
+      };
+
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleFileSelect = useCallback(
     async (files: FileList | null) => {
       if (!files || files.length === 0) return;
 
       const remainingSlots = maxFiles - media.length;
-      if (remainingSlots <= 0) return;
+      if (remainingSlots <= 0) {
+        toast.error(`Maximum ${maxFiles} files allowed`);
+        return;
+      }
 
-      setIsUploading(true);
+      setIsProcessing(true);
 
       try {
         const filesToProcess = Array.from(files).slice(0, remainingSlots);
-        const newMedia: PostMedia[] = [];
+        const newMedia: LocalMedia[] = [];
+        const errors: string[] = [];
 
         for (const file of filesToProcess) {
-          // Validate file
-          if (file.size > MAX_FILE_SIZE) {
-            console.warn(`File ${file.name} exceeds maximum size`);
+          // Validate file using the service
+          const validation = validateMediaFile(file);
+          if (!validation.valid) {
+            errors.push(`${file.name}: ${validation.error}`);
             continue;
           }
 
           const mediaType = getMediaType(file);
           if (!mediaType) {
-            console.warn(`File ${file.name} has unsupported type`);
+            errors.push(`${file.name}: Unsupported file type`);
             continue;
           }
 
           const url = URL.createObjectURL(file);
           let thumbnailUrl: string | undefined;
+          let duration: number | undefined;
 
           if (mediaType === "video") {
-            thumbnailUrl = await createVideoThumbnail(file);
+            [thumbnailUrl, duration] = await Promise.all([
+              createVideoThumbnail(file),
+              getVideoDuration(file),
+            ]);
           }
 
           newMedia.push({
@@ -242,15 +299,23 @@ export function MediaUpload({
             url,
             type: mediaType,
             thumbnailUrl,
+            duration,
             order: media.length + newMedia.length,
+            file, // Store the file reference for upload
+            isUploaded: false, // Mark as not uploaded yet
           });
+        }
+
+        // Show errors if any
+        if (errors.length > 0) {
+          errors.forEach((err) => toast.error(err));
         }
 
         if (newMedia.length > 0) {
           onChange([...media, ...newMedia]);
         }
       } finally {
-        setIsUploading(false);
+        setIsProcessing(false);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -263,7 +328,10 @@ export function MediaUpload({
     (id: string) => {
       const item = media.find((m) => m.id === id);
       if (item) {
-        URL.revokeObjectURL(item.url);
+        // Revoke blob URLs
+        if (item.url.startsWith("blob:")) {
+          URL.revokeObjectURL(item.url);
+        }
         if (item.thumbnailUrl?.startsWith("blob:")) {
           URL.revokeObjectURL(item.thumbnailUrl);
         }
@@ -305,6 +373,9 @@ export function MediaUpload({
     setActiveId(null);
   };
 
+  // Count pending uploads
+  const pendingCount = media.filter((m) => !m.isUploaded && m.file).length;
+
   return (
     <div className={cn("space-y-3", className)}>
       <DndContext
@@ -332,14 +403,14 @@ export function MediaUpload({
           {media.length < maxFiles && (
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
+              disabled={isProcessing}
               className={cn(
                 "w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center gap-1",
                 "hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors",
                 "text-muted-foreground"
               )}
             >
-              {isUploading ? (
+              {isProcessing ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
@@ -367,9 +438,13 @@ export function MediaUpload({
 
       {/* Info text */}
       <p className="text-[10px] text-muted-foreground">
-        {media.length}/{maxFiles} • Drag to reorder • Images & videos up to 50MB
+        {media.length}/{maxFiles} • Drag to reorder • Images up to 10MB, videos up to 250MB
+        {pendingCount > 0 && (
+          <span className="text-yellow-600 dark:text-yellow-400">
+            {" "}• {pendingCount} pending upload
+          </span>
+        )}
       </p>
     </div>
   );
 }
-
