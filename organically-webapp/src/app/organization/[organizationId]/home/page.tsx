@@ -275,7 +275,7 @@ export default function HomePage() {
                             />
                           )}
                           <div className="flex-1">
-                            <p className="font-medium">{task.title}</p>
+                            <p className="font-medium">{task.content || "Untitled post"}</p>
                             <p className="text-sm text-muted-foreground">
                               {firstPlatform
                                 ? firstPlatform.charAt(0).toUpperCase() +
@@ -328,7 +328,7 @@ export default function HomePage() {
                             />
                           )}
                           <div className="flex-1">
-                            <p className="text-sm font-medium">{post.title}</p>
+                            <p className="text-sm font-medium">{post.content || "Untitled post"}</p>
                             <p className="text-xs text-muted-foreground">
                               {post.scheduledDate &&
                                 new Date(post.scheduledDate).toLocaleDateString(
