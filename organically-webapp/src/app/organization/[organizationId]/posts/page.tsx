@@ -367,6 +367,12 @@ export default function PostsPage() {
     const activePost = posts.find((p) => p.id === activePostId);
     if (!activePost) return;
 
+    // Prevent dragging posted posts
+    if (activePost.status === "posted") {
+      toast.error("Cannot move a published post");
+      return;
+    }
+
     // Check if dropped over a column (status) or another post
     const isOverColumn = statusOrder.includes(overId as PostStatus);
     const overPost = posts.find((p) => p.id === overId);
@@ -387,6 +393,12 @@ export default function PostsPage() {
         .sort((a, b) => a.order - b.order);
       targetIndex = targetPosts.findIndex((p) => p.id === overId);
     } else {
+      return;
+    }
+
+    // Prevent dropping into "posted" column (only Inngest can set posts to posted)
+    if (targetStatus === "posted") {
+      toast.error("Posts can only be marked as posted after publishing");
       return;
     }
 
