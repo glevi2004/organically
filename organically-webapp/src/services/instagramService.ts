@@ -180,3 +180,305 @@ export async function verifyInstagramToken(channel: Channel): Promise<boolean> {
     return false;
   }
 }
+
+// ============================================
+// Content Publishing API
+// Docs: https://developers.facebook.com/docs/instagram-platform/content-publishing
+// ============================================
+
+export type ContainerStatus =
+  | "EXPIRED"
+  | "ERROR"
+  | "FINISHED"
+  | "IN_PROGRESS"
+  | "PUBLISHED";
+
+export interface ContainerResponse {
+  id: string;
+}
+
+export interface ContainerStatusResponse {
+  status_code: ContainerStatus;
+  id: string;
+}
+
+export interface PublishResponse {
+  id: string;
+}
+
+/**
+ * Create a media container for a single image post
+ */
+export async function createImageContainer(
+  accessToken: string,
+  igUserId: string,
+  imageUrl: string,
+  caption?: string
+): Promise<ContainerResponse> {
+  const body: Record<string, string> = {
+    image_url: imageUrl,
+  };
+
+  if (caption) {
+    body.caption = caption;
+  }
+
+  const response = await fetch(`${INSTAGRAM_GRAPH_URL}/${igUserId}/media`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram create image container error:", error);
+    throw new Error(
+      error.error?.error_user_msg ||
+        "The media is not ready for publishing, please wait for a moment"
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a media container for a video/reel post
+ */
+export async function createVideoContainer(
+  accessToken: string,
+  igUserId: string,
+  videoUrl: string,
+  caption?: string,
+  mediaType: "REELS" | "VIDEO" = "REELS"
+): Promise<ContainerResponse> {
+  const body: Record<string, string> = {
+    video_url: videoUrl,
+    media_type: mediaType,
+  };
+
+  if (caption) {
+    body.caption = caption;
+  }
+
+  const response = await fetch(`${INSTAGRAM_GRAPH_URL}/${igUserId}/media`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram create video container error:", error);
+    throw new Error(
+      error.error?.error_user_msg ||
+        "The media is not ready for publishing, please wait for a moment"
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a carousel item container (for images in a carousel)
+ * Note: Carousel items don't have captions - caption goes on the carousel container
+ */
+export async function createCarouselItemContainer(
+  accessToken: string,
+  igUserId: string,
+  mediaUrl: string,
+  mediaType: "image" | "video"
+): Promise<ContainerResponse> {
+  const body: Record<string, string | boolean> = {
+    is_carousel_item: true,
+  };
+
+  if (mediaType === "image") {
+    body.image_url = mediaUrl;
+  } else {
+    body.video_url = mediaUrl;
+    body.media_type = "VIDEO";
+  }
+
+  const response = await fetch(`${INSTAGRAM_GRAPH_URL}/${igUserId}/media`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram create carousel item error:", error);
+    throw new Error(
+      error.error?.error_user_msg ||
+        "The media is not ready for publishing, please wait for a moment"
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a carousel container with multiple media items
+ */
+export async function createCarouselContainer(
+  accessToken: string,
+  igUserId: string,
+  childrenIds: string[],
+  caption?: string
+): Promise<ContainerResponse> {
+  const body: Record<string, string> = {
+    media_type: "CAROUSEL",
+    children: childrenIds.join(","),
+  };
+
+  if (caption) {
+    body.caption = caption;
+  }
+
+  const response = await fetch(`${INSTAGRAM_GRAPH_URL}/${igUserId}/media`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram create carousel container error:", error);
+    throw new Error(
+      error.error?.error_user_msg ||
+        "The media is not ready for publishing, please wait for a moment"
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Check the status of a media container (useful for video processing)
+ */
+export async function checkContainerStatus(
+  accessToken: string,
+  containerId: string
+): Promise<ContainerStatusResponse> {
+  const response = await fetch(
+    `${INSTAGRAM_GRAPH_URL}/${containerId}?fields=status_code`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram check container status error:", error);
+    throw new Error(
+      error.error?.error_user_msg ||
+        "The media is not ready for publishing, please wait for a moment"
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Wait for a container to be ready (polls status until FINISHED or error)
+ * Recommended: poll once per minute for up to 5 minutes
+ */
+export async function waitForContainerReady(
+  accessToken: string,
+  containerId: string,
+  maxAttempts = 10,
+  intervalMs = 30000 // 30 seconds
+): Promise<ContainerStatusResponse> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const status = await checkContainerStatus(accessToken, containerId);
+
+    if (status.status_code === "FINISHED") {
+      return status;
+    }
+
+    if (status.status_code === "ERROR" || status.status_code === "EXPIRED") {
+      throw new Error(`Container failed with status: ${status.status_code}`);
+    }
+
+    // Wait before next attempt
+    if (attempt < maxAttempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  throw new Error("Container processing timed out");
+}
+
+/**
+ * Publish a media container to Instagram
+ */
+export async function publishMediaContainer(
+  accessToken: string,
+  igUserId: string,
+  containerId: string
+): Promise<PublishResponse> {
+  const response = await fetch(
+    `${INSTAGRAM_GRAPH_URL}/${igUserId}/media_publish`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        creation_id: containerId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram publish error:", error);
+    throw new Error(
+      error.error?.error_user_msg ||
+        "The media is not ready for publishing, please wait for a moment"
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Check the publishing rate limit for an account
+ * Instagram accounts are limited to 100 API-published posts within a 24-hour period
+ */
+export async function checkPublishingLimit(
+  accessToken: string,
+  igUserId: string
+): Promise<{ quota_usage: number; config: { quota_total: number } }> {
+  const response = await fetch(
+    `${INSTAGRAM_GRAPH_URL}/${igUserId}/content_publishing_limit`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram rate limit check error:", error);
+    throw new Error(error.error?.message || "Failed to check publishing limit");
+  }
+
+  return response.json();
+}
