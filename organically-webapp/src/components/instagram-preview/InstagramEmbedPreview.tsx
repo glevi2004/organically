@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { PostMedia } from "@/types/post";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Play } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 
 interface InstagramEmbedPreviewProps {
   media: PostMedia[];
@@ -148,6 +156,11 @@ function MediaCarousel({
   currentIndex: number;
   onIndexChange: (index: number) => void;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [showControls, setShowControls] = useState(true);
+
   const handlePrev = () => {
     if (currentIndex > 0) {
       onIndexChange(currentIndex - 1);
@@ -157,6 +170,47 @@ function MediaCarousel({
   const handleNext = () => {
     if (currentIndex < media.length - 1) {
       onIndexChange(currentIndex + 1);
+    }
+  };
+
+  // Reset playback state when changing media
+  useEffect(() => {
+    setIsPlaying(false);
+    setShowControls(true);
+  }, [currentIndex]);
+
+  // Handle video play/pause
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+
+    if (isPlaying) {
+      videoRef.current.pause();
+      setShowControls(true);
+    } else {
+      videoRef.current.play();
+      // Hide controls after a delay when playing
+      setTimeout(() => setShowControls(false), 2000);
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  // Handle mute/unmute
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  // Show controls on mouse move
+  const handleMouseMove = () => {
+    setShowControls(true);
+    if (isPlaying) {
+      // Hide controls again after delay
+      setTimeout(() => {
+        if (isPlaying) setShowControls(false);
+      }, 2000);
     }
   };
 
@@ -190,16 +244,21 @@ function MediaCarousel({
   const currentMedia = media[currentIndex];
 
   return (
-    <div className="relative aspect-square bg-black overflow-hidden">
+    <div
+      className="relative aspect-square bg-black overflow-hidden"
+      onMouseMove={currentMedia.type === "video" ? handleMouseMove : undefined}
+    >
       {/* Media */}
       {currentMedia.type === "video" ? (
         <video
+          ref={videoRef}
           src={currentMedia.url}
-          className="w-full h-full object-contain bg-black"
-          controls={false}
-          muted
+          className="w-full h-full object-contain bg-black cursor-pointer"
+          muted={isMuted}
           loop
           playsInline
+          onClick={togglePlay}
+          onEnded={() => setIsPlaying(false)}
         />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
@@ -210,13 +269,34 @@ function MediaCarousel({
         />
       )}
 
-      {/* Play button for video */}
-      {currentMedia.type === "video" && (
+      {/* Play/Pause button overlay for video */}
+      {currentMedia.type === "video" && showControls && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-16 h-16 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
-            <Play className="w-8 h-8 text-white fill-white ml-1" />
-          </div>
+          <button
+            onClick={togglePlay}
+            className="w-16 h-16 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center hover:bg-black/50 hover:scale-105 transition-all duration-200 pointer-events-auto cursor-pointer"
+          >
+            {isPlaying ? (
+              <Pause className="w-8 h-8 text-white fill-white pointer-events-none" />
+            ) : (
+              <Play className="w-8 h-8 text-white fill-white ml-1 pointer-events-none" />
+            )}
+          </button>
         </div>
+      )}
+
+      {/* Mute/Unmute button for video */}
+      {currentMedia.type === "video" && showControls && (
+        <button
+          onClick={toggleMute}
+          className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 hover:scale-110 transition-all duration-200 z-10 cursor-pointer"
+        >
+          {isMuted ? (
+            <VolumeX className="w-4 h-4 text-white pointer-events-none" />
+          ) : (
+            <Volume2 className="w-4 h-4 text-white pointer-events-none" />
+          )}
+        </button>
       )}
 
       {/* Navigation arrows */}
