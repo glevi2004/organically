@@ -3,7 +3,15 @@
 import { useRef, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { LocalMedia, MediaType } from "@/types/post";
-import { ImagePlus, X, Play, GripVertical, Loader2, Cloud, CloudOff } from "lucide-react";
+import {
+  ImagePlus,
+  X,
+  Play,
+  GripVertical,
+  Loader2,
+  Cloud,
+  CloudOff,
+} from "lucide-react";
 import { nanoid } from "nanoid";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -30,8 +38,22 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 const MAX_FILES = 10;
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
-const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+];
+const ALLOWED_VIDEO_TYPES = [
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "video/mov",
+];
+// File extensions for accept attribute (more reliable than MIME types, especially for Mac Photos)
+const ACCEPT_EXTENSIONS = "image/*,video/*";
 
 interface MediaUploadProps {
   media: LocalMedia[];
@@ -62,7 +84,8 @@ function SortableMediaItem({
     transition,
   };
 
-  const isUploaded = item.isUploaded || (!item.file && !item.url.startsWith("blob:"));
+  const isUploaded =
+    item.isUploaded || (!item.file && !item.url.startsWith("blob:"));
 
   return (
     <div
@@ -84,17 +107,21 @@ function SortableMediaItem({
               unoptimized={item.thumbnailUrl.startsWith("data:")}
             />
           ) : (
-            <video src={item.url} className="w-full h-full object-cover" muted />
+            <video
+              src={item.url}
+              className="w-full h-full object-cover"
+              muted
+            />
           )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/20">
             <Play className="w-6 h-6 text-white fill-white" />
           </div>
         </>
       ) : (
-        <Image 
-          src={item.url} 
-          alt="Media" 
-          fill 
+        <Image
+          src={item.url}
+          alt="Media"
+          fill
           className="object-cover"
           unoptimized={item.url.startsWith("blob:")}
         />
@@ -120,7 +147,10 @@ function SortableMediaItem({
       {/* Upload status indicator */}
       <div className="absolute bottom-1 left-1">
         {isUploaded ? (
-          <div className="p-1 rounded bg-green-500/80" title="Uploaded to cloud">
+          <div
+            className="p-1 rounded bg-green-500/80"
+            title="Uploaded to cloud"
+          >
             <Cloud className="w-2.5 h-2.5 text-white" />
           </div>
         ) : (
@@ -153,17 +183,21 @@ function MediaItemOverlay({ item }: { item: LocalMedia }) {
               unoptimized={item.thumbnailUrl.startsWith("data:")}
             />
           ) : (
-            <video src={item.url} className="w-full h-full object-cover" muted />
+            <video
+              src={item.url}
+              className="w-full h-full object-cover"
+              muted
+            />
           )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/20">
             <Play className="w-6 h-6 text-white fill-white" />
           </div>
         </>
       ) : (
-        <Image 
-          src={item.url} 
-          alt="Media" 
-          fill 
+        <Image
+          src={item.url}
+          alt="Media"
+          fill
           className="object-cover"
           unoptimized={item.url.startsWith("blob:")}
         />
@@ -194,8 +228,19 @@ export function MediaUpload({
   const activeItem = media.find((m) => m.id === activeId);
 
   const getMediaType = (file: File): MediaType | null => {
+    // Check by MIME type
     if (ALLOWED_IMAGE_TYPES.includes(file.type)) return "image";
     if (ALLOWED_VIDEO_TYPES.includes(file.type)) return "video";
+    // Check if it starts with image/ or video/ (handles HEIC and other formats)
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    // Fallback: check by file extension
+    const ext = file.name.toLowerCase().split(".").pop();
+    if (
+      ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"].includes(ext || "")
+    )
+      return "image";
+    if (["mp4", "mov", "webm", "m4v"].includes(ext || "")) return "video";
     return null;
   };
 
@@ -430,7 +475,7 @@ export function MediaUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept={[...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES].join(",")}
+        accept={ACCEPT_EXTENSIONS}
         multiple
         onChange={(e) => handleFileSelect(e.target.files)}
         className="hidden"
@@ -438,10 +483,12 @@ export function MediaUpload({
 
       {/* Info text */}
       <p className="text-[10px] text-muted-foreground">
-        {media.length}/{maxFiles} • Drag to reorder • Images up to 10MB, videos up to 250MB
+        {media.length}/{maxFiles} • Drag to reorder • Images up to 10MB, videos
+        up to 250MB
         {pendingCount > 0 && (
           <span className="text-yellow-600 dark:text-yellow-400">
-            {" "}• {pendingCount} pending upload
+            {" "}
+            • {pendingCount} pending upload
           </span>
         )}
       </p>
