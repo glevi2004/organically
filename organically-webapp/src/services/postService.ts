@@ -13,7 +13,8 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
-import { Post, CreatePostInput, PostStatus } from "@/types/post";
+import { Post, CreatePostInput, PostStatus, PostMedia } from "@/types/post";
+import { deleteAllPostMedia, deletePostMedia } from "@/services/postMediaService";
 
 const POSTS_COLLECTION = "posts";
 
@@ -44,17 +45,16 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
       id: postId,
       organizationId: input.organizationId,
       userId: input.userId,
-      title: input.title,
       content: input.content,
       platforms: input.platforms,
       status: input.status || "idea",
       order,
       createdAt: now,
       updatedAt: now,
-      ...(input.type && { type: input.type }),
       ...(input.scheduledDate && { scheduledDate: input.scheduledDate }),
       ...(input.hooks && { hooks: input.hooks }),
       ...(input.hashtags && { hashtags: input.hashtags }),
+      ...(input.media && input.media.length > 0 && { media: input.media }),
     };
 
     // Build Firestore document, filtering out undefined values
@@ -62,7 +62,6 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
       id: post.id,
       organizationId: post.organizationId,
       userId: post.userId,
-      title: post.title,
       content: post.content,
       platforms: post.platforms,
       status: post.status,
@@ -76,9 +75,9 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
     };
 
     // Only add optional fields if they have values
-    if (post.type) firestoreDoc.type = post.type;
     if (post.hooks) firestoreDoc.hooks = post.hooks;
     if (post.hashtags) firestoreDoc.hashtags = post.hashtags;
+    if (post.media && post.media.length > 0) firestoreDoc.media = post.media;
 
     await setDoc(doc(db, POSTS_COLLECTION, postId), firestoreDoc);
 
@@ -192,6 +191,23 @@ export async function getPostsByDateRange(
 }
 
 /**
+ * Helper to remove undefined values from an object (recursively for arrays)
+ */
+function removeUndefinedValues(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefinedValues);
+  }
+  if (obj !== null && typeof obj === "object") {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key, value]) => [key, removeUndefinedValues(value)])
+    );
+  }
+  return obj;
+}
+
+/**
  * Update a post
  */
 export async function updatePost(
@@ -202,9 +218,8 @@ export async function updatePost(
     const docRef = doc(db, POSTS_COLLECTION, postId);
 
     // Filter out undefined values - Firestore doesn't accept them
-    const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
-    );
+    // This also handles nested objects and arrays (like media)
+    const filteredUpdates = removeUndefinedValues(updates);
 
     const updateData: any = {
       ...filteredUpdates,
@@ -232,10 +247,24 @@ export async function updatePost(
 }
 
 /**
- * Delete a post
+ * Delete a post and its associated media from storage
  */
 export async function deletePost(postId: string): Promise<void> {
   try {
+    // First, get the post to retrieve organizationId and media
+    const post = await getPost(postId);
+    
+    if (post) {
+      // Delete all media files from storage
+      try {
+        await deleteAllPostMedia(post.organizationId, postId);
+      } catch (mediaError) {
+        // Log but don't fail the delete if media cleanup fails
+        console.warn("Failed to delete post media from storage:", mediaError);
+      }
+    }
+
+    // Delete the post document
     await deleteDoc(doc(db, POSTS_COLLECTION, postId));
   } catch (error) {
     console.error("Error deleting post:", error);
