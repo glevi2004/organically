@@ -116,7 +116,7 @@ function SortablePostCard({
               })}
             </div>
             <p className="text-sm font-medium line-clamp-2 flex-1">
-              {post.title}
+              {post.content || "Untitled post"}
             </p>
           </div>
           {post.scheduledDate && (
@@ -164,7 +164,7 @@ function PostCardOverlay({ post }: { post: Post }) {
               })}
             </div>
             <p className="text-sm font-medium line-clamp-2 flex-1">
-              {post.title}
+              {post.content || "Untitled post"}
             </p>
           </div>
           {post.scheduledDate && (
