@@ -19,10 +19,9 @@ import {
 import { Loader2, CircleDot, Globe, Calendar, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { getPost, updatePost, reorderPosts } from "@/services/postService";
-import { Post, PostStatus, PostType, PostPlatform } from "@/types/post";
+import { Post, PostStatus, PostPlatform } from "@/types/post";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/organization-constants";
-import { POST_TYPES, getAllowedPlatformsForType } from "@/lib/post-constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -104,10 +103,9 @@ export default function PostEditPage() {
       if (fetchedPost) {
         setPost(fetchedPost);
         setEditedPost(fetchedPost);
-        setCustomTitle(fetchedPost.title);
+        setCustomTitle(fetchedPost.content?.slice(0, 50) || "Post");
         // Initialize lastSaved ref to prevent unnecessary first save
         lastSavedRef.current = JSON.stringify({
-          title: fetchedPost.title,
           content: fetchedPost.content,
           scheduledDate: fetchedPost.scheduledDate?.getTime(),
         });
@@ -133,7 +131,6 @@ export default function PostEditPage() {
 
     // Create a snapshot to compare
     const snapshot = JSON.stringify({
-      title: postToSave.title,
       content: postToSave.content,
       scheduledDate: postToSave.scheduledDate?.getTime(),
     });
@@ -146,7 +143,6 @@ export default function PostEditPage() {
     try {
       setSaveStatus("saving");
       await updatePost(postToSave.id, {
-        title: postToSave.title,
         content: postToSave.content,
         scheduledDate: postToSave.scheduledDate,
       });
@@ -186,16 +182,15 @@ export default function PostEditPage() {
     [editedPost, debouncedSave]
   );
 
-  // Handle title/date blur save (immediate)
+  // Handle date blur save (immediate)
   const handleFieldSave = async () => {
     if (!editedPost || !post) return;
 
-    // Only save if title or scheduledDate changed
-    const titleChanged = post.title !== editedPost.title;
+    // Only save if scheduledDate changed
     const dateChanged =
       post.scheduledDate?.getTime() !== editedPost.scheduledDate?.getTime();
 
-    if (!titleChanged && !dateChanged) return;
+    if (!dateChanged) return;
 
     // Clear any pending content save
     if (saveTimeoutRef.current) {
@@ -246,19 +241,6 @@ export default function PostEditPage() {
 
   return (
     <div className="mt-6 w-full space-y-2">
-      {/* Title - Large editable heading */}
-      <input
-        type="text"
-        value={editedPost.title}
-        onChange={(e) => {
-          setEditedPost({ ...editedPost, title: e.target.value });
-          setCustomTitle(e.target.value);
-        }}
-        onBlur={handleFieldSave}
-        placeholder="Untitled"
-        className="w-full text-3xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/30"
-      />
-
       {/* Properties */}
       <div className="space-y-3 py-4">
         {/* Status */}
@@ -313,50 +295,6 @@ export default function PostEditPage() {
           </DropdownMenu>
         </div>
 
-        {/* Post Type */}
-        <div className="flex items-center gap-4">
-          <span className="text-muted-foreground w-36 flex items-center gap-2">
-            <CircleDot className="h-4 w-4" />
-            Type
-          </span>
-          <select
-            value={editedPost.type || ""}
-            onChange={(e) => {
-              const newType = e.target.value as PostType | "";
-              const updatedPost = {
-                ...editedPost,
-                type: newType || undefined,
-              };
-              // If type changes and restricts platforms, filter platforms
-              if (newType) {
-                const newAllowedPlatforms = getAllowedPlatformsForType(
-                  newType as PostType
-                );
-                updatedPost.platforms = editedPost.platforms.filter((p) =>
-                  newAllowedPlatforms.includes(p)
-                );
-                // Ensure at least one platform if current platforms are filtered out
-                if (
-                  updatedPost.platforms.length === 0 &&
-                  newAllowedPlatforms.length > 0
-                ) {
-                  updatedPost.platforms = [newAllowedPlatforms[0]];
-                }
-              }
-              setEditedPost(updatedPost);
-            }}
-            onBlur={handleFieldSave}
-            className="px-3 py-1.5 rounded-md text-base border border-border bg-background hover:bg-muted"
-          >
-            <option value="">None</option>
-            {POST_TYPES.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.label} - {type.description}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Platforms */}
         <div className="flex items-center gap-4">
           <span className="text-muted-foreground w-36 flex items-center gap-2">
@@ -403,11 +341,7 @@ export default function PostEditPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-full">
-                {PLATFORMS.filter((p) =>
-                  getAllowedPlatformsForType(editedPost.type).includes(
-                    p.id as PostPlatform
-                  )
-                ).map((platform) => (
+                {PLATFORMS.map((platform) => (
                   <DropdownMenuCheckboxItem
                     key={platform.id}
                     checked={editedPost.platforms.includes(
