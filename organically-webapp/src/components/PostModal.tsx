@@ -32,7 +32,7 @@ import { PLATFORMS } from "@/lib/organization-constants";
 import { POST_TYPES, getAllowedPlatformsForType } from "@/lib/post-constants";
 import { cn } from "@/lib/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { InstagramEmbedPreview, MediaUpload } from "@/components/instagram-preview";
+import { InstagramEmbedPreview, MediaUpload, IPhoneFrame } from "@/components/instagram-preview";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
 // Status configuration with colors
@@ -641,15 +641,19 @@ export function PostModal({
 
           {/* Right Side - Instagram Embed Preview */}
           <div className="flex flex-col min-w-0 bg-muted/30 p-4 overflow-y-auto">
-            <div className="flex-1 flex items-start justify-center">
-              <InstagramEmbedPreview
-                media={localMedia}
-                caption={editedPost.content || editedPost.title}
-                username={username}
-                profileImage={profileImage || undefined}
-                width={340}
-                captioned
-              />
+            <div className="flex-1 flex items-center justify-center">
+              <IPhoneFrame scale={0.6} screenBackground="transparent">
+                <div className="h-full overflow-y-auto bg-white dark:bg-black">
+                  <InstagramEmbedPreview
+                    media={localMedia}
+                    caption={editedPost.content || editedPost.title}
+                    username={username}
+                    profileImage={profileImage || undefined}
+                    width="100%"
+                    captioned
+                  />
+                </div>
+              </IPhoneFrame>
             </div>
           </div>
         </div>
