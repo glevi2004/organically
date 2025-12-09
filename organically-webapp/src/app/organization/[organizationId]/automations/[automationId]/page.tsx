@@ -27,7 +27,7 @@ const getDefaultWorkflow = (): {
       position: { x: 150, y: 200 },
       data: {
         ...defaultTriggerData,
-        label: "When someone DMs",
+        label: "Direct Message",
       },
     },
   ],
