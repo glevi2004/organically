@@ -44,7 +44,6 @@ import {
   BadgeCheck,
   CreditCard,
   Bell,
-  Lightbulb,
   Calendar,
   FileEdit,
   Globe,
@@ -125,11 +124,6 @@ const getNavMain = (organizationId: string) => [
     title: "Automations",
     url: `/organization/${organizationId}/automations`,
     icon: AudioWaveform,
-  },
-  {
-    title: "Idea Dump",
-    url: `/organization/${organizationId}/idea-dump`,
-    icon: Lightbulb,
   },
   {
     title: "Calendar",

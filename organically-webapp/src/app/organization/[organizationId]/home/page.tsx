@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sparkles,
-  Lightbulb,
   Calendar,
   FileEdit,
   CheckCircle2,
@@ -18,9 +17,7 @@ import {
 } from "lucide-react";
 import { getDefaultOrganizationImageUrl } from "@/services/imageUploadService";
 import { getPostsByOrganization } from "@/services/postService";
-import { getIdeasByOrganization } from "@/services/ideaService";
 import { Post } from "@/types/post";
-import { Idea } from "@/types/idea";
 import Image from "next/image";
 import { PLATFORMS } from "@/lib/organization-constants";
 
@@ -30,20 +27,14 @@ export default function HomePage() {
   const { activeOrganization } = useOrganization();
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [ideas, setIdeas] = useState<Idea[]>([]);
 
   const loadDashboardData = useCallback(async () => {
     if (!activeOrganization) return;
 
     try {
       setLoading(true);
-      const [allPosts, allIdeas] = await Promise.all([
-        getPostsByOrganization(activeOrganization.id),
-        getIdeasByOrganization(activeOrganization.id),
-      ]);
-
+      const allPosts = await getPostsByOrganization(activeOrganization.id);
       setPosts(allPosts);
-      setIdeas(allIdeas);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     } finally {
@@ -83,7 +74,6 @@ export default function HomePage() {
 
   const upcomingPosts = getUpcomingPosts();
   const totalPosts = posts.length;
-  const totalIdeas = ideas.length;
   const channels = activeOrganization?.channels?.length || 0;
 
   return (
@@ -126,7 +116,7 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -137,20 +127,6 @@ export default function HomePage() {
                       <p className="text-3xl font-bold">{totalPosts}</p>
                     </div>
                     <FileEdit className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Saved Ideas
-                      </p>
-                      <p className="text-3xl font-bold">{totalIdeas}</p>
-                    </div>
-                    <Lightbulb className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -185,25 +161,14 @@ export default function HomePage() {
                     <p className="text-muted-foreground mb-4">
                       No posts scheduled this week. Ready to create something?
                     </p>
-                    <div className="flex gap-2 justify-center">
-                      <Button
-                        onClick={() =>
-                          router.push(`/organization/${activeOrganization?.id}/idea-dump`)
-                        }
-                        variant="outline"
-                      >
-                        <Lightbulb className="w-4 h-4" />
-                        Generate Ideas
-                      </Button>
-                      <Button
-                        onClick={() =>
-                          router.push(`/organization/${activeOrganization?.id}/calendar`)
-                        }
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Generate Weekly Plan
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={() =>
+                        router.push(`/organization/${activeOrganization?.id}/calendar`)
+                      }
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Generate Weekly Plan
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-2">
