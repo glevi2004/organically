@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, useMemo, useEffect } from 'react';
+import { useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -12,20 +12,20 @@ import {
   addEdge,
   Connection,
   Node,
-  Edge,
   ReactFlowProvider,
   useReactFlow,
   BackgroundVariant,
-  NodeChange,
-  EdgeChange,
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { nodeTypes } from './nodes';
 import { WorkflowSidebar } from './WorkflowSidebar';
-import { NodeConfigPanel } from './panels/NodeConfigPanel';
-import { WorkflowNode, WorkflowEdge, WorkflowNodeData } from '@/types/workflow';
+import { 
+  WorkflowNode, 
+  WorkflowEdge, 
+  TriggerNodeData,
+} from '@/types/workflow';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 
@@ -46,7 +46,7 @@ const defaultEdgeOptions = {
   type: 'smoothstep',
   style: { 
     strokeWidth: 2,
-    stroke: '#64748b', // slate-500 - more visible
+    stroke: '#64748b',
   },
   markerEnd: {
     type: MarkerType.ArrowClosed,
@@ -59,20 +59,14 @@ const defaultEdgeOptions = {
 function WorkflowCanvasInner({
   initialNodes = [],
   initialEdges = [],
-  onSave,
   onChange,
-  onActivate,
-  isActive = false,
-  isSaving = false,
   readOnly = false,
-  workflowName = 'Untitled Workflow',
 }: WorkflowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
 
   // Notify parent of changes
   useEffect(() => {
@@ -109,6 +103,18 @@ function WorkflowCanvasInner({
   }, [nodes, edges]);
 
   const isValid = validationErrors.length === 0;
+
+  // Get current trigger info for sidebar filtering
+  const { currentTriggerType, hasTrigger } = useMemo(() => {
+    const trigger = nodes.find((n) => n.type === 'trigger');
+    if (trigger && trigger.data) {
+      return {
+        currentTriggerType: (trigger.data as TriggerNodeData).type,
+        hasTrigger: true,
+      };
+    }
+    return { currentTriggerType: null, hasTrigger: false };
+  }, [nodes]);
 
   // Handle new connections
   const onConnect = useCallback(
@@ -159,56 +165,6 @@ function WorkflowCanvasInner({
     [screenToFlowPosition, setNodes]
   );
 
-  // Handle node selection
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    if (!readOnly) {
-      setSelectedNode(node as WorkflowNode);
-    }
-  }, [readOnly]);
-
-  // Handle pane click (deselect)
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-  }, []);
-
-  // Update node data from config panel
-  const onNodeDataChange = useCallback(
-    (nodeId: string, newData: WorkflowNodeData) => {
-      setNodes((nds) =>
-        nds.map((node) =>
-          node.id === nodeId ? { ...node, data: newData } : node
-        )
-      );
-      // Update selected node if it's the one being edited
-      setSelectedNode((prev) => 
-        prev && prev.id === nodeId ? { ...prev, data: newData } : prev
-      );
-    },
-    [setNodes]
-  );
-
-  // Delete node
-  const onNodeDelete = useCallback(
-    (nodeId: string) => {
-      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-      setSelectedNode(null);
-    },
-    [setNodes, setEdges]
-  );
-
-  // Handle save
-  const handleSave = useCallback(() => {
-    onSave?.(nodes as WorkflowNode[], edges as WorkflowEdge[]);
-  }, [nodes, edges, onSave]);
-
-  // Handle activate toggle
-  const handleActivate = useCallback(() => {
-    if (isValid) {
-      onActivate?.(!isActive);
-    }
-  }, [isValid, isActive, onActivate]);
-
   // Custom minimap node colors
   const nodeColor = (node: Node) => {
     switch (node.type) {
@@ -216,8 +172,6 @@ function WorkflowCanvasInner({
         return '#3b82f6'; // blue
       case 'action':
         return '#a855f7'; // purple
-      case 'condition':
-        return '#eab308'; // yellow
       case 'delay':
         return '#f59e0b'; // amber
       default:
@@ -228,7 +182,12 @@ function WorkflowCanvasInner({
   return (
     <div className="flex h-full bg-background">
       {/* Sidebar */}
-      {!readOnly && <WorkflowSidebar />}
+      {!readOnly && (
+        <WorkflowSidebar 
+          currentTriggerType={currentTriggerType} 
+          hasTrigger={hasTrigger} 
+        />
+      )}
 
       {/* Canvas */}
       <div ref={reactFlowWrapper} className="flex-1 h-full relative">
@@ -240,12 +199,10 @@ function WorkflowCanvasInner({
           onConnect={onConnect}
           onDragOver={onDragOver}
           onDrop={onDrop}
-          onNodeClick={onNodeClick}
-          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           fitView
-          fitViewOptions={{ padding: 0.2 }}
+          fitViewOptions={{ padding: 0.3 }}
           proOptions={{ hideAttribution: true }}
           className="bg-muted/20"
           deleteKeyCode={['Backspace', 'Delete']}
@@ -296,7 +253,6 @@ function WorkflowCanvasInner({
             )}
           </Panel>
 
-
           {/* Bottom Panel - Validation Errors */}
           {!readOnly && validationErrors.length > 0 && (
             <Panel position="bottom-left" className="max-w-sm">
@@ -320,16 +276,6 @@ function WorkflowCanvasInner({
           )}
         </ReactFlow>
       </div>
-
-      {/* Config Panel */}
-      {selectedNode && !readOnly && (
-        <NodeConfigPanel
-          node={selectedNode}
-          onClose={() => setSelectedNode(null)}
-          onChange={onNodeDataChange}
-          onDelete={onNodeDelete}
-        />
-      )}
     </div>
   );
 }
@@ -341,4 +287,3 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
     </ReactFlowProvider>
   );
 }
-
