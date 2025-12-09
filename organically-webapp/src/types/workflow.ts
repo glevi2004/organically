@@ -22,6 +22,7 @@ export interface TriggerNodeData {
   nodeType: 'trigger';
   type: TriggerType;
   label: string;
+  channelId?: string;
   keywords?: string[];
   matchType?: 'exact' | 'contains' | 'starts_with';
   caseSensitive?: boolean;
@@ -39,6 +40,7 @@ export interface ActionNodeData {
   nodeType: 'action';
   type: ActionType;
   label: string;
+  channelId?: string;
   messageTemplate?: string;
 }
 
