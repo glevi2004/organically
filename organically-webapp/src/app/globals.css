@@ -1,6 +1,9 @@
 @import '../styles/_variables.scss';
 @import '../styles/_keyframe-animations.scss';
 
+/* React Flow styles - must be imported before Tailwind */
+@import '@xyflow/react/dist/style.css';
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
