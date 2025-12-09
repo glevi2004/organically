@@ -3,10 +3,19 @@
 import { memo, useCallback } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 import { Send, Reply, Zap } from "lucide-react";
-import { ActionNodeData } from "@/types/workflow";
+import { ActionNodeData, ActionType } from "@/types/workflow";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Icon and color configuration for each action type
 const actionConfig: Record<
@@ -37,6 +46,9 @@ interface ActionNodeProps {
 
 export const ActionNode = memo(({ id, data, selected }: ActionNodeProps) => {
   const { setNodes } = useReactFlow();
+  const { activeOrganization } = useOrganization();
+
+  const channels = activeOrganization?.channels?.filter((c) => c.isActive) || [];
   
   const config = actionConfig[data.type] || {
     icon: Zap,
@@ -86,6 +98,40 @@ export const ActionNode = memo(({ id, data, selected }: ActionNodeProps) => {
 
       {/* Body - Configuration */}
       <div className="p-4 space-y-4">
+        {/* Channel Selection */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Channel</Label>
+          <Select
+            value={data.channelId || ""}
+            onValueChange={(value) => updateData({ channelId: value })}
+          >
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue placeholder="Select a channel..." />
+            </SelectTrigger>
+            <SelectContent>
+              {channels.length === 0 ? (
+                <div className="p-2 text-sm text-muted-foreground text-center">
+                  No channels connected
+                </div>
+              ) : (
+                channels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={channel.profileImageUrl || undefined} />
+                        <AvatarFallback className="text-[10px]">
+                          {channel.accountName?.charAt(0).toUpperCase() || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>@{channel.accountName}</span>
+                    </div>
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Message Template */}
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Message</Label>
