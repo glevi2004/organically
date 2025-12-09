@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Send, 
   Reply,
+  GitBranch,
   Clock,
   Zap,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { 
   triggerTemplates, 
   actionTemplates, 
+  conditionTemplates,
   delayTemplates,
   getCompatibleActions,
   NodeTemplate,
@@ -27,6 +29,7 @@ const iconMap: Record<string, React.ElementType> = {
   MessageSquare,
   Send,
   Reply,
+  GitBranch,
   Clock,
   Zap,
 };
@@ -37,6 +40,7 @@ const colorClasses: Record<string, { text: string; bg: string }> = {
   orange: { text: 'text-orange-500', bg: 'bg-orange-500/10' },
   purple: { text: 'text-purple-500', bg: 'bg-purple-500/10' },
   cyan: { text: 'text-cyan-500', bg: 'bg-cyan-500/10' },
+  yellow: { text: 'text-yellow-500', bg: 'bg-yellow-500/10' },
   amber: { text: 'text-amber-500', bg: 'bg-amber-500/10' },
 };
 
@@ -168,13 +172,21 @@ export function WorkflowSidebar({ className, currentTriggerType, hasTrigger = fa
             </div>
           </div>
 
-          {/* Delay */}
+          {/* Logic */}
           <div>
             <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Delay
+              <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              Logic
             </h4>
             <div className="space-y-2">
+              {conditionTemplates.map((template) => (
+                <DraggableNode 
+                  key={template.subType} 
+                  template={template}
+                  disabled={!hasTrigger}
+                  disabledReason={!hasTrigger ? noTriggerReason : undefined}
+                />
+              ))}
               {delayTemplates.map((template) => (
                 <DraggableNode 
                   key={template.subType} 

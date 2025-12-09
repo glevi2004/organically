@@ -3,17 +3,10 @@
 import { memo, useCallback } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 import { Send, Reply, Zap } from "lucide-react";
-import { ActionNodeData, ActionType } from "@/types/workflow";
+import { ActionNodeData } from "@/types/workflow";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // Icon and color configuration for each action type
 const actionConfig: Record<
@@ -81,8 +74,8 @@ export const ActionNode = memo(({ id, data, selected }: ActionNodeProps) => {
       />
 
       {/* Header */}
-      <div className={cn("px-4 py-3 border-b flex items-center gap-3", config.bg)}>
-        <div className="p-1.5 rounded-lg bg-background/50">
+      <div className="px-4 py-3 border-b flex items-center gap-3">
+        <div className={cn("p-1.5 rounded-md", config.bg)}>
           <Icon className={cn("w-4 h-4", config.color)} />
         </div>
         <div className="flex-1 min-w-0">
@@ -93,23 +86,6 @@ export const ActionNode = memo(({ id, data, selected }: ActionNodeProps) => {
 
       {/* Body - Configuration */}
       <div className="p-4 space-y-4">
-        {/* Action Type */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Action Type</Label>
-          <Select
-            value={data.type}
-            onValueChange={(value: ActionType) => updateData({ type: value })}
-          >
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="send_message">Send Message</SelectItem>
-              <SelectItem value="reply_comment">Reply to Comment</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Message Template */}
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Message</Label>

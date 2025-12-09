@@ -14,7 +14,6 @@ import {
   Calendar,
   FileEdit,
   CheckCircle2,
-  ArrowRight,
   Loader2,
 } from "lucide-react";
 import { getDefaultOrganizationImageUrl } from "@/services/imageUploadService";
@@ -59,22 +58,6 @@ export default function HomePage() {
     }
   }, [activeOrganization, loadDashboardData]);
 
-  // Get today's tasks (posts scheduled for today)
-  const getTodaysTasks = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return posts.filter((post) => {
-      if (!post.scheduledDate) return false;
-      const postDate = new Date(post.scheduledDate);
-      return (
-        postDate >= today && postDate < tomorrow && post.status !== "posted"
-      );
-    });
-  };
-
   // Get upcoming posts (next 7 days)
   const getUpcomingPosts = () => {
     const today = new Date();
@@ -93,27 +76,12 @@ export default function HomePage() {
       .slice(0, 5);
   };
 
-  // Calculate streak (posts in last 7 days)
-  const calculateStreak = () => {
-    const today = new Date();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-
-    return posts.filter((post) => {
-      if (!post.postedDate) return false;
-      const postDate = new Date(post.postedDate);
-      return postDate >= weekAgo && post.status === "posted";
-    }).length;
-  };
-
   const getPlatformIcon = (platformId: string) => {
     const platform = PLATFORMS.find((p) => p.id === platformId);
     return platform?.logo;
   };
 
-  const todaysTasks = getTodaysTasks();
   const upcomingPosts = getUpcomingPosts();
-  const streak = calculateStreak();
   const totalPosts = posts.length;
   const totalIdeas = ideas.length;
   const channels = activeOrganization?.channels?.length || 0;
@@ -158,7 +126,7 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -200,36 +168,22 @@ export default function HomePage() {
                   </div>
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        7-Day Streak
-                      </p>
-                      <p className="text-3xl font-bold">{streak}</p>
-                    </div>
-                    <CheckCircle2 className="w-8 h-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
-            {/* Today's Focus */}
+            {/* Upcoming This Week */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
-                  Today's Focus
+                  Upcoming This Week
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {todaysTasks.length === 0 ? (
+                {upcomingPosts.length === 0 ? (
                   <div className="text-center py-8">
                     <CheckCircle2 className="w-12 h-12 mx-auto text-green-500 mb-4" />
                     <p className="text-muted-foreground mb-4">
-                      No posts scheduled for today. Ready to create something?
+                      No posts scheduled this week. Ready to create something?
                     </p>
                     <div className="flex gap-2 justify-center">
                       <Button
@@ -252,59 +206,6 @@ export default function HomePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {todaysTasks.map((task) => {
-                      const firstPlatform = task.platforms?.[0];
-                      const platformLogo = firstPlatform
-                        ? getPlatformIcon(firstPlatform)
-                        : null;
-                      return (
-                        <div
-                          key={task.id}
-                          className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() =>
-                            router.push(`/organization/${activeOrganization?.id}/posts`)
-                          }
-                        >
-                          {platformLogo && (
-                            <Image
-                              src={platformLogo}
-                              alt={firstPlatform || "Platform"}
-                              width={24}
-                              height={24}
-                            />
-                          )}
-                          <div className="flex-1">
-                            <p className="font-medium">{task.content || "Untitled post"}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {firstPlatform
-                                ? firstPlatform.charAt(0).toUpperCase() +
-                                  firstPlatform.slice(1)
-                                : "Multiple platforms"}{" "}
-                              •{" "}
-                              {task.status.charAt(0).toUpperCase() +
-                                task.status.slice(1)}
-                            </p>
-                          </div>
-                          <ArrowRight className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Upcoming Posts */}
-            {upcomingPosts.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    Upcoming This Week
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
                   <div className="space-y-2">
                     {upcomingPosts.map((post) => {
                       const firstPlatform = post.platforms?.[0];
@@ -355,9 +256,9 @@ export default function HomePage() {
                       );
                     })}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
       </div>

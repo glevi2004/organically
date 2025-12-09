@@ -172,6 +172,8 @@ function WorkflowCanvasInner({
         return '#3b82f6'; // blue
       case 'action':
         return '#a855f7'; // purple
+      case 'condition':
+        return '#eab308'; // yellow
       case 'delay':
         return '#f59e0b'; // amber
       default:

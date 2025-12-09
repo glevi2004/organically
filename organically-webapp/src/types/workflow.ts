@@ -7,6 +7,7 @@ import { Node, Edge } from '@xyflow/react';
 export type WorkflowNodeType = 
   | 'trigger' 
   | 'action' 
+  | 'condition'
   | 'delay';
 
 // ============================================
@@ -42,6 +43,21 @@ export interface ActionNodeData {
 }
 
 // ============================================
+// Condition Types & Data
+// ============================================
+
+export type ConditionField = 'message' | 'username' | 'follower_count';
+export type ConditionOperator = 'contains' | 'not_contains' | 'equals' | 'not_equals';
+
+export interface ConditionNodeData {
+  nodeType: 'condition';
+  label: string;
+  field: ConditionField;
+  operator: ConditionOperator;
+  value: string;
+}
+
+// ============================================
 // Delay Types & Data
 // ============================================
 
@@ -61,6 +77,7 @@ export interface DelayNodeData {
 export type WorkflowNodeData = 
   | TriggerNodeData 
   | ActionNodeData 
+  | ConditionNodeData
   | DelayNodeData;
 
 // ============================================
@@ -123,6 +140,14 @@ export const defaultActionData: ActionNodeData = {
   messageTemplate: '',
 };
 
+export const defaultConditionData: ConditionNodeData = {
+  nodeType: 'condition',
+  label: 'If Condition',
+  field: 'message',
+  operator: 'contains',
+  value: '',
+};
+
 export const defaultDelayData: DelayNodeData = {
   nodeType: 'delay',
   label: 'Delay',
@@ -136,7 +161,7 @@ export const defaultDelayData: DelayNodeData = {
 
 export interface NodeTemplate {
   type: WorkflowNodeType;
-  subType: TriggerType | ActionType | 'delay';
+  subType: TriggerType | ActionType | 'condition' | 'delay';
   label: string;
   icon: string; // Icon name from lucide-react
   color: string; // Tailwind color name
@@ -211,6 +236,17 @@ export const actionTemplates: NodeTemplate[] = [
   },
 ];
 
+export const conditionTemplates: NodeTemplate[] = [
+  {
+    type: 'condition',
+    subType: 'condition',
+    label: 'If Condition',
+    icon: 'GitBranch',
+    color: 'yellow',
+    defaultData: defaultConditionData,
+  },
+];
+
 export const delayTemplates: NodeTemplate[] = [
   {
     type: 'delay',
@@ -225,6 +261,7 @@ export const delayTemplates: NodeTemplate[] = [
 export const allNodeTemplates = [
   ...triggerTemplates,
   ...actionTemplates,
+  ...conditionTemplates,
   ...delayTemplates,
 ];
 
@@ -256,6 +293,10 @@ export function isTriggerNode(data: WorkflowNodeData): data is TriggerNodeData {
 
 export function isActionNode(data: WorkflowNodeData): data is ActionNodeData {
   return data.nodeType === 'action';
+}
+
+export function isConditionNode(data: WorkflowNodeData): data is ConditionNodeData {
+  return data.nodeType === 'condition';
 }
 
 export function isDelayNode(data: WorkflowNodeData): data is DelayNodeData {

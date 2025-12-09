@@ -95,10 +95,8 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
       )}
     >
       {/* Header */}
-      <div
-        className={cn("px-4 py-3 border-b flex items-center gap-3", config.bg)}
-      >
-        <div className="p-1.5 rounded-lg bg-background/50">
+      <div className="px-4 py-3 border-b flex items-center gap-3">
+        <div className={cn("p-1.5 rounded-md", config.bg)}>
           <Icon className={cn("w-4 h-4", config.color)} />
         </div>
         <div className="flex-1 min-w-0">
@@ -109,23 +107,6 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
 
       {/* Body - Configuration */}
       <div className="p-4 space-y-4">
-        {/* Trigger Type */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Trigger Type</Label>
-          <Select
-            value={data.type}
-            onValueChange={(value: TriggerType) => updateData({ type: value })}
-          >
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="direct_message">Direct Message</SelectItem>
-              <SelectItem value="post_comment">Post Comment</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Keywords */}
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Keywords</Label>

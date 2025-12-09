@@ -53,8 +53,8 @@ export const DelayNode = memo(({ id, data, selected }: DelayNodeProps) => {
       />
 
       {/* Header */}
-      <div className="px-4 py-3 border-b flex items-center gap-3 bg-amber-500/10">
-        <div className="p-1.5 rounded-lg bg-background/50">
+      <div className="px-4 py-3 border-b flex items-center gap-3">
+        <div className="p-1.5 rounded-md bg-amber-500/10">
           <Clock className="w-4 h-4 text-amber-500" />
         </div>
         <div className="flex-1 min-w-0">
