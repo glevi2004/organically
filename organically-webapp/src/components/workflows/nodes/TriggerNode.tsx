@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Icon and color configuration for each trigger type
 const triggerConfig: Record<
@@ -45,6 +47,10 @@ interface TriggerNodeProps {
 
 export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
   const { setNodes } = useReactFlow();
+  const { activeOrganization } = useOrganization();
+
+  const channels =
+    activeOrganization?.channels?.filter((c) => c.isActive) || [];
 
   const config = triggerConfig[data.type] || {
     icon: Zap,
@@ -107,6 +113,42 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
 
       {/* Body - Configuration */}
       <div className="p-4 space-y-4">
+        {/* Channel Selection */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Channel</Label>
+          <Select
+            value={data.channelId || ""}
+            onValueChange={(value) => updateData({ channelId: value })}
+          >
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue placeholder="Select a channel..." />
+            </SelectTrigger>
+            <SelectContent>
+              {channels.length === 0 ? (
+                <div className="p-2 text-sm text-muted-foreground text-center">
+                  No channels connected
+                </div>
+              ) : (
+                channels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage
+                          src={channel.profileImageUrl || undefined}
+                        />
+                        <AvatarFallback className="text-[10px]">
+                          {channel.accountName?.charAt(0).toUpperCase() || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>@{channel.accountName}</span>
+                    </div>
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Keywords */}
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Keywords</Label>
