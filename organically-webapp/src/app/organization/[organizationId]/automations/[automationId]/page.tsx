@@ -4,59 +4,79 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
+import { WorkflowCanvas } from "@/components/workflows";
 import {
-  Automation,
-  AutomationFormData,
-  defaultAutomationFormData,
-} from "@/types/automation";
-import { AutomationBuilder } from "@/components/automations/AutomationBuilder";
+  WorkflowNode,
+  WorkflowEdge,
+  defaultTriggerData,
+} from "@/types/workflow";
 import { Button } from "@/components/ui/button";
-import { Zap, Loader2 } from "lucide-react";
+import { Zap, ZapOff, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-// Mock function to simulate loading automation
-const loadAutomation = async (id: string): Promise<Automation | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  if (id === "new") return null;
-
-  return {
-    id,
-    organizationId: "org1",
-    channelId: "ch1",
-    name: "Welcome Message",
-    description: "Auto-reply to DMs",
-    trigger: {
-      type: "dm_keyword",
-      keywords: ["Help"],
-      matchType: "contains",
-      caseSensitive: false,
+// Default starter workflow for new automations
+const getDefaultWorkflow = (): {
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+} => ({
+  nodes: [
+    {
+      id: `trigger-${Date.now()}`,
+      type: "trigger",
+      position: { x: 150, y: 200 },
+      data: {
+        ...defaultTriggerData,
+        label: "When someone DMs",
+      },
     },
-    action: {
-      type: "send_ai_response",
-      aiPrompt:
-        "The user's input while always leading the conversation towards them signing up to learn more or joining the program.",
-      delaySeconds: 0,
-    },
-    isActive: false,
-    triggerCount: 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-};
+  ],
+  edges: [],
+});
 
-// Header action component
+// Header action components
+function SaveButton({
+  onSave,
+  isSaving,
+}: {
+  onSave: () => void;
+  isSaving: boolean;
+}) {
+  return (
+    <Button
+      variant="outline"
+      onClick={onSave}
+      disabled={isSaving}
+      className="gap-2"
+    >
+      {isSaving ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Saving...
+        </>
+      ) : (
+        <>
+          <Save className="w-4 h-4" />
+          Save
+        </>
+      )}
+    </Button>
+  );
+}
+
 function ActivateButton({
   isActive,
+  isValid,
   onActivate,
 }: {
   isActive: boolean;
+  isValid: boolean;
   onActivate: () => void;
 }) {
   return (
     <Button
       onClick={onActivate}
+      disabled={!isValid && !isActive}
       className={cn(
         "gap-2",
         isActive
@@ -64,13 +84,22 @@ function ActivateButton({
           : "bg-primary hover:bg-primary/90"
       )}
     >
-      <Zap className="w-4 h-4" />
-      {isActive ? "Active" : "Activate"}
+      {isActive ? (
+        <>
+          <Zap className="w-4 h-4" />
+          Active
+        </>
+      ) : (
+        <>
+          <ZapOff className="w-4 h-4" />
+          Activate
+        </>
+      )}
     </Button>
   );
 }
 
-export default function AutomationEditorPage() {
+export default function WorkflowEditorPage() {
   const params = useParams();
   const { activeOrganization } = useOrganization();
   const breadcrumb = useBreadcrumb();
@@ -79,35 +108,47 @@ export default function AutomationEditorPage() {
   const breadcrumbRef = useRef(breadcrumb);
   breadcrumbRef.current = breadcrumb;
 
-  const automationId = params.automationId as string;
-  const isNew = automationId === "new";
+  const workflowId = params.automationId as string;
+  const isNew = workflowId === "new";
 
-  const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [isActive, setIsActive] = useState(false);
-  const [name, setName] = useState("Untitled Automation");
-  const [formData, setFormData] = useState<AutomationFormData>(
-    defaultAutomationFormData
-  );
+  const [isValid, setIsValid] = useState(false);
+  const [name, setName] = useState("New Workflow");
+  const [nodes, setNodes] = useState<WorkflowNode[]>([]);
+  const [edges, setEdges] = useState<WorkflowEdge[]>([]);
   const [mounted, setMounted] = useState(false);
+
+  // Track current canvas state for header save button
+  const currentNodesRef = useRef<WorkflowNode[]>([]);
+  const currentEdgesRef = useRef<WorkflowEdge[]>([]);
+
+  const handleCanvasChange = useCallback(
+    (newNodes: WorkflowNode[], newEdges: WorkflowEdge[]) => {
+      currentNodesRef.current = newNodes;
+      currentEdgesRef.current = newEdges;
+    },
+    []
+  );
 
   // Handle activate toggle
   const handleActivate = useCallback(() => {
+    if (!isValid && !isActive) {
+      toast.error("Please fix validation errors first");
+      return;
+    }
+
     setIsActive((prev) => {
       const newState = !prev;
-      toast.success(
-        newState ? "Automation activated" : "Automation deactivated"
-      );
+      toast.success(newState ? "Workflow activated!" : "Workflow deactivated");
       return newState;
     });
-  }, []);
+  }, [isValid, isActive]);
 
   // Handle title change from layout
   const handleTitleChange = useCallback((newTitle: string) => {
     setName(newTitle);
     breadcrumbRef.current.setCustomTitle(newTitle);
-    setSaving(true);
-    setTimeout(() => setSaving(false), 500);
   }, []);
 
   // Initial setup - run once on mount
@@ -116,93 +157,82 @@ export default function AutomationEditorPage() {
     breadcrumbRef.current.setIsEditableTitle(true);
     breadcrumbRef.current.setOnTitleChange(handleTitleChange);
 
+    // Initialize with default workflow
+    const defaultWf = getDefaultWorkflow();
+    setNodes(defaultWf.nodes);
+    setEdges(defaultWf.edges);
+    setName(isNew ? "New Workflow" : "Workflow Editor");
+    breadcrumbRef.current.setCustomTitle(
+      isNew ? "New Workflow" : "Workflow Editor"
+    );
+
     return () => {
       breadcrumbRef.current.setCustomTitle(null);
       breadcrumbRef.current.setIsEditableTitle(false);
       breadcrumbRef.current.setOnTitleChange(null);
       breadcrumbRef.current.clearHeaderActions();
     };
-  }, [handleTitleChange]);
+  }, [handleTitleChange, isNew]);
 
-  // Update header actions when isActive changes
+  // Save handler (local only for now)
+  const handleSave = useCallback(
+    (newNodes: WorkflowNode[], newEdges: WorkflowEdge[]) => {
+      setSaving(true);
+
+      // Simulate save delay
+      setTimeout(() => {
+        setNodes(newNodes);
+        setEdges(newEdges);
+        setSaving(false);
+        toast.success("Workflow saved! (local only)");
+        console.log("Saved workflow:", {
+          name,
+          nodes: newNodes,
+          edges: newEdges,
+        });
+      }, 500);
+    },
+    [name]
+  );
+
+  // Save from header button
+  const handleHeaderSave = useCallback(() => {
+    handleSave(currentNodesRef.current, currentEdgesRef.current);
+  }, [handleSave]);
+
+  // Update header actions when state changes
   useEffect(() => {
     if (!mounted) return;
 
     breadcrumbRef.current.setHeaderActions([
       {
+        id: "save-button",
+        content: <SaveButton onSave={handleHeaderSave} isSaving={saving} />,
+      },
+      {
         id: "activate-button",
         content: (
-          <ActivateButton isActive={isActive} onActivate={handleActivate} />
+          <ActivateButton
+            isActive={isActive}
+            isValid={isValid}
+            onActivate={handleActivate}
+          />
         ),
       },
     ]);
-  }, [isActive, handleActivate, mounted]);
-
-  // Load automation data
-  useEffect(() => {
-    async function load() {
-      if (isNew) {
-        breadcrumbRef.current.setCustomTitle("New Automation");
-        setName("New Automation");
-        return;
-      }
-
-      setLoading(true);
-      const automation = await loadAutomation(automationId);
-      if (automation) {
-        setName(automation.name);
-        breadcrumbRef.current.setCustomTitle(automation.name);
-        setIsActive(automation.isActive);
-        setFormData({
-          name: automation.name,
-          description: automation.description || "",
-          channelId: automation.channelId,
-          trigger: {
-            type: automation.trigger.type,
-            keywords: automation.trigger.keywords,
-            matchType: automation.trigger.matchType,
-            caseSensitive: automation.trigger.caseSensitive,
-            postIds: automation.trigger.postIds || [],
-          },
-          action: {
-            type: automation.action.type,
-            messageTemplate: automation.action.messageTemplate || "",
-            aiPrompt:
-              automation.action.aiPrompt ||
-              defaultAutomationFormData.action.aiPrompt,
-            delaySeconds: automation.action.delaySeconds || 0,
-          },
-          isActive: automation.isActive,
-        });
-      }
-      setLoading(false);
-    }
-    load();
-  }, [automationId, isNew]);
-
-  // Auto-save functionality
-  const handleChange = useCallback((data: AutomationFormData) => {
-    setFormData(data);
-    setSaving(true);
-    setTimeout(() => setSaving(false), 800);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  }, [isActive, isValid, handleActivate, handleHeaderSave, saving, mounted]);
 
   return (
-    <div className="flex-1 -mx-16 -mb-16">
-      <AutomationBuilder
-        initialData={formData}
-        onChange={handleChange}
+    <div className="flex-1 -mx-16 -mb-16 h-[calc(100vh-8rem)]">
+      <WorkflowCanvas
+        initialNodes={nodes}
+        initialEdges={edges}
+        onSave={handleSave}
+        onChange={handleCanvasChange}
         onActivate={handleActivate}
         isActive={isActive}
         isSaving={saving}
+        workflowName={name}
       />
     </div>
   );
