@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function PrivacyPolicyPage() {
   const lastUpdated = "December 10, 2024";
   const companyName = "Organically";
-  const contactEmail = "privacy@organically.app";
+  const contactEmail = process.env.EMAIL_PRIVACY!;
 
   return (
     <div className="min-h-screen bg-background">
