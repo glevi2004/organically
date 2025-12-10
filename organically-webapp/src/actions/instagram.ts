@@ -71,7 +71,10 @@ async function verifyOrgMembership(
 /**
  * Verify the user owns the post
  */
-async function verifyPostOwnership(userId: string, postId: string): Promise<Post> {
+async function verifyPostOwnership(
+  userId: string,
+  postId: string
+): Promise<Post> {
   const postDoc = await adminDb.collection("posts").doc(postId).get();
 
   if (!postDoc.exists) {
@@ -108,7 +111,10 @@ export async function publishToInstagram(
 
     // 3. Validate post
     if (!post.media || post.media.length === 0) {
-      return { success: false, error: "Post must have at least one media item" };
+      return {
+        success: false,
+        error: "Post must have at least one media item",
+      };
     }
 
     if (post.status === "posted") {
@@ -189,15 +195,12 @@ export async function publishToInstagram(
     );
 
     // 8. Update post in Firestore
-    await adminDb
-      .collection("posts")
-      .doc(postId)
-      .update({
-        status: "posted",
-        instagramMediaId: publishResult.id,
-        publishedAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+    await adminDb.collection("posts").doc(postId).update({
+      status: "posted",
+      instagramMediaId: publishResult.id,
+      publishedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
     return {
       success: true,
@@ -240,7 +243,10 @@ export async function schedulePost(
     }
 
     if (!post.media || post.media.length === 0) {
-      return { success: false, error: "Post must have at least one media item" };
+      return {
+        success: false,
+        error: "Post must have at least one media item",
+      };
     }
 
     if (post.status === "posted") {
@@ -376,4 +382,3 @@ export async function getInstagramPostsForChannel(
     };
   }
 }
-
