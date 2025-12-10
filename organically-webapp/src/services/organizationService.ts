@@ -37,7 +37,7 @@ export async function createOrganization(
   const organization: Partial<Organization> = {
     id: newOrganizationRef.id,
     name: organizationData.name,
-    userId,
+    users: [userId], // Array of user IDs who have access
     createdAt: now,
     updatedAt: now,
     onboardingCompleted: false,
@@ -56,9 +56,10 @@ export async function createOrganization(
 
 export async function getUserOrganizations(userId: string): Promise<Organization[]> {
   const organizationsRef = collection(db, "organizations");
+  // Query organizations where the user is in the users array
   const q = query(
     organizationsRef,
-    where("userId", "==", userId),
+    where("users", "array-contains", userId),
     orderBy("createdAt", "asc")
   );
 
@@ -79,7 +80,7 @@ export async function getOrganization(organizationId: string): Promise<Organizat
 
 export async function updateOrganization(
   organizationId: string,
-  updates: Partial<Omit<Organization, "id" | "userId" | "createdAt">>
+  updates: Partial<Omit<Organization, "id" | "users" | "createdAt">>
 ): Promise<void> {
   const organizationRef = doc(db, "organizations", organizationId);
 

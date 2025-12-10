@@ -28,6 +28,7 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { GlobeIcon, MessageCircleIcon, PlusIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Message,
   MessageContent,
@@ -82,6 +83,7 @@ export default function ChatBot() {
   const [input, setInput] = useState(""); // Add local state for input
   const [model, setModel] = useState<string>(models[0].value);
   const [webSearch, setWebSearch] = useState<boolean>(false);
+  const { user } = useAuth();
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
@@ -89,14 +91,24 @@ export default function ChatBot() {
     }),
   });
 
-  const onSubmit = (message: PromptInputMessage) => {
+  const onSubmit = async (message: PromptInputMessage) => {
     if (message.text.trim() || message.files.length > 0) {
+      // Get auth token
+      const token = user ? await user.getIdToken() : null;
+      if (!token) {
+        console.error("User not authenticated");
+        return;
+      }
+
       sendMessage(
         { text: message.text, files: message.files },
         {
           body: {
             model,
             webSearch,
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
         }
       );

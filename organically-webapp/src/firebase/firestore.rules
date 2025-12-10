@@ -23,86 +23,120 @@ service cloud.firestore {
 
     // --- ORGANIZATIONS COLLECTION ---
     match /organizations/{organizationId} {
-      // Allow read if user is authenticated (query will filter by userId)
-      allow read: if isAuthenticated();
+      // Helper: check if user is a member of the organization
+      function isMember() {
+        return request.auth.uid in resource.data.users;
+      }
       
-      // Create: must be authenticated and set userId to own uid
+      // Helper: check if user will be a member after the write
+      function willBeMember() {
+        return request.auth.uid in request.resource.data.users;
+      }
+
+      // Read: user must be in the users array
+      allow read: if isAuthenticated() && isMember();
+      
+      // Create: must be authenticated, include self in users array, and have a name
       allow create: if isAuthenticated()
-                    && request.resource.data.userId == request.auth.uid
+                    && willBeMember()
+                    && request.resource.data.users is list
                     && request.resource.data.name is string;
 
-      // Update: must own the document (check existing data)
-      allow update: if isAuthenticated()
-                    && resource.data.userId == request.auth.uid;
+      // Update: must be a member of the organization
+      allow update: if isAuthenticated() && isMember();
 
-      // Delete: must own the document
-      allow delete: if isAuthenticated() 
-                    && resource.data.userId == request.auth.uid;
+      // Delete: must be a member of the organization
+      allow delete: if isAuthenticated() && isMember();
 
       // --- AUTOMATIONS SUBCOLLECTION ---
       match /automations/{automationId} {
-        // Helper to check if user owns the parent organization
-        function isOrgOwner() {
+        // Helper to check if user is a member of the parent organization
+        function isOrgMember() {
           return isAuthenticated() 
-            && get(/databases/$(database)/documents/organizations/$(organizationId)).data.userId == request.auth.uid;
+            && request.auth.uid in get(/databases/$(database)/documents/organizations/$(organizationId)).data.users;
         }
 
-        // Read: must own the parent organization
-        allow read: if isOrgOwner();
+        // Read: must be a member of the parent organization
+        allow read: if isOrgMember();
 
-        // Create: must own the parent organization
-        allow create: if isOrgOwner();
+        // Create: must be a member of the parent organization
+        allow create: if isOrgMember();
 
-        // Update: must own the parent organization
-        allow update: if isOrgOwner();
+        // Update: must be a member of the parent organization
+        allow update: if isOrgMember();
 
-        // Delete: must own the parent organization
-        allow delete: if isOrgOwner();
+        // Delete: must be a member of the parent organization
+        allow delete: if isOrgMember();
       }
     }
 
 
     // --- POSTS COLLECTION ---
     match /posts/{postId} {
-      // Allow read if user is authenticated (query will filter by userId)
-      allow read: if isAuthenticated();
+      // Helper: check if user is a member of the post's organization
+      function isPostOrgMember() {
+        return request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.organizationId)).data.users;
+      }
+      
+      // Helper: check if user will be a member of the organization for the new post
+      function willBePostOrgMember() {
+        return request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.organizationId)).data.users;
+      }
 
-      // Create: must be authenticated and set userId to own uid
+      // Read: user must be a member of the post's organization
+      allow read: if isAuthenticated() && isPostOrgMember();
+
+      // Create: must be authenticated, member of org, set userId to self
       // Cannot create a post with status "posted" (only server can set that)
       allow create: if isAuthenticated()
+                    && willBePostOrgMember()
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.status != 'posted';
 
-      // Update: must own the document
+      // Update: must be a member of the organization
       // Cannot update posts that are already "posted" (published posts are immutable)
       // Cannot manually set status to "posted" (only server can do that via Admin SDK)
       allow update: if isAuthenticated()
-                    && resource.data.userId == request.auth.uid
+                    && isPostOrgMember()
                     && resource.data.status != 'posted'
                     && request.resource.data.status != 'posted';
 
-      // Delete: must own the document (allowed even for posted posts)
-      allow delete: if isAuthenticated() 
-                    && resource.data.userId == request.auth.uid;
+      // Delete: must be a member of the organization
+      allow delete: if isAuthenticated() && isPostOrgMember();
     }
 
 
     // --- IDEAS COLLECTION ---
     match /ideas/{ideaId} {
-      // Allow read if user is authenticated (query will filter by userId)
-      allow read: if isAuthenticated();
+      // Helper: check if user is a member of the idea's organization
+      function isIdeaOrgMember() {
+        return request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.organizationId)).data.users;
+      }
+      
+      // Helper: check if user will be a member of the organization for the new idea
+      function willBeIdeaOrgMember() {
+        return request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.organizationId)).data.users;
+      }
 
-      // Create: must be authenticated and set userId to own uid
+      // Read: user must be a member of the idea's organization
+      allow read: if isAuthenticated() && isIdeaOrgMember();
+
+      // Create: must be authenticated and member of org
       allow create: if isAuthenticated()
+                    && willBeIdeaOrgMember()
                     && request.resource.data.userId == request.auth.uid;
 
-      // Update: must own the document
-      allow update: if isAuthenticated()
-                    && resource.data.userId == request.auth.uid;
+      // Update: must be a member of the organization
+      allow update: if isAuthenticated() && isIdeaOrgMember();
 
-      // Delete: must own the document
-      allow delete: if isAuthenticated() 
-                    && resource.data.userId == request.auth.uid;
+      // Delete: must be a member of the organization
+      allow delete: if isAuthenticated() && isIdeaOrgMember();
+    }
+
+    // --- DATA DELETIONS COLLECTION ---
+    // Only server (Admin SDK) can access; no client access
+    match /data_deletions/{deletionId} {
+      allow read, write: if false;
     }
 
     // Default deny

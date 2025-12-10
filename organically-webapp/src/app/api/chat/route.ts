@@ -11,6 +11,7 @@ import { openai } from "@ai-sdk/openai";
 import { perplexity } from "@ai-sdk/perplexity";
 import z from "zod/v4";
 import { experimental_createMCPClient } from "@ai-sdk/mcp";
+import { adminAuth } from "@/firebase/firebaseAdmin";
 
 // Map string identifiers to actual model instances
 function getModel(modelId: string, webSearch: boolean) {
@@ -60,6 +61,25 @@ async function getGrepMCPTools() {
   }
 }
 export async function POST(req: Request) {
+  // Verify authentication
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    const token = authHeader.slice(7);
+    await adminAuth.verifyIdToken(token);
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid token" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const {
     messages,
     model,

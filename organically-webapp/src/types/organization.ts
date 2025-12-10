@@ -25,7 +25,7 @@ export interface Organization {
   id: string;
   name: string;
   imageUrl?: string;
-  userId: string;
+  users: string[]; // Array of user IDs who have access
   createdAt: Timestamp;
   updatedAt: Timestamp;
 
@@ -43,7 +43,9 @@ export interface Organization {
 }
 
 // Utility function to get Instagram channels
-export function getInstagramChannels(channels: Channel[] | undefined): Channel[] {
+export function getInstagramChannels(
+  channels: Channel[] | undefined
+): Channel[] {
   if (!channels) return [];
   return channels.filter((c) => c.provider === "instagram");
 }

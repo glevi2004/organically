@@ -44,6 +44,8 @@ import {
 } from "@/components/instagram-preview";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { useRouter } from "next/navigation";
+import { useAuthToken } from "@/hooks/useAuthToken";
+import { publishToInstagram, schedulePost } from "@/actions/instagram";
 
 // Status configuration with colors
 const statusConfig: Record<
@@ -116,6 +118,7 @@ export function PostModal({
 }: PostModalProps) {
   const { activeOrganization } = useOrganization();
   const router = useRouter();
+  const { getToken } = useAuthToken();
   const isEditMode = !!post;
   const [editedPost, setEditedPost] = useState<
     Omit<Post, "id" | "createdAt" | "updatedAt"> & { id?: string }
@@ -388,23 +391,28 @@ export function PostModal({
       if (shouldSchedule) {
         setUploadProgress("Scheduling post...");
 
-        const response = await fetch("/api/instagram/schedule", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            postId: newPost.id,
-            organizationId,
-            scheduledDate: scheduledTime.toISOString(),
-          }),
-        });
+        const token = await getToken();
+        if (!token) {
+          toast.error("Authentication required");
+          return;
+        }
 
-        if (response.ok) {
+        const result = await schedulePost(
+          token,
+          newPost.id,
+          organizationId,
+          scheduledTime.toISOString()
+        );
+
+        if (result.success) {
           onPostCreated?.(newPost);
           onOpenChange(false);
           toast.success(
             `Post created and scheduled for ${scheduledTime.toLocaleDateString()} at ${scheduledTime.toLocaleTimeString()}`
           );
           return;
+        } else {
+          toast.error(result.error || "Failed to schedule post");
         }
       }
 
@@ -474,18 +482,19 @@ export function PostModal({
     try {
       setIsPublishing(true);
 
-      const response = await fetch("/api/instagram/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          postId: editedPost.id,
-          organizationId,
-        }),
-      });
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication required");
+        return;
+      }
 
-      const result = await response.json();
+      const result = await publishToInstagram(
+        token,
+        editedPost.id!,
+        organizationId
+      );
 
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.error || "Failed to publish");
       }
 
@@ -493,7 +502,7 @@ export function PostModal({
       const updatedPost = {
         ...editedPost,
         status: "posted" as PostStatus,
-        instagramMediaId: result.instagramMediaId,
+        instagramMediaId: result.data?.instagramMediaId,
         publishedAt: new Date(),
       };
       setEditedPost(updatedPost);
@@ -718,19 +727,20 @@ export function PostModal({
       if (shouldSchedule) {
         setUploadProgress("Scheduling post...");
 
-        const response = await fetch("/api/instagram/schedule", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            postId: editedPost.id,
-            organizationId,
-            scheduledDate: scheduledTime.toISOString(),
-          }),
-        });
+        const token = await getToken();
+        if (!token) {
+          toast.error("Authentication required");
+          return;
+        }
 
-        const result = await response.json();
+        const result = await schedulePost(
+          token,
+          editedPost.id!,
+          organizationId,
+          scheduledTime.toISOString()
+        );
 
-        if (!response.ok) {
+        if (!result.success) {
           throw new Error(result.error || "Failed to schedule post");
         }
 

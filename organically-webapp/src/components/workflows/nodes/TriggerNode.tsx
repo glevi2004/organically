@@ -26,6 +26,8 @@ import {
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
+import { useAuthToken } from "@/hooks/useAuthToken";
+import { getInstagramPostsForChannel } from "@/actions/instagram";
 
 // Icon and color configuration for each trigger type
 const triggerConfig: Record<
@@ -66,6 +68,7 @@ interface InstagramPost {
 export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
   const { setNodes } = useReactFlow();
   const { activeOrganization } = useOrganization();
+  const { getToken } = useAuthToken();
 
   const channels =
     activeOrganization?.channels?.filter((c) => c.isActive) || [];
@@ -94,17 +97,24 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
       setPostsError(null);
 
       try {
-        const response = await fetch(
-          `/api/instagram/posts?channelId=${data.channelId}&limit=25`
-        );
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to fetch posts");
+        const token = await getToken();
+        if (!token) {
+          setPostsError("Authentication required");
+          setPosts([]);
+          return;
         }
 
-        const result = await response.json();
-        setPosts(result.data || []);
+        const result = await getInstagramPostsForChannel(
+          token,
+          data.channelId,
+          25
+        );
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to fetch posts");
+        }
+
+        setPosts(result.data?.posts || []);
       } catch (error) {
         console.error("Error fetching posts:", error);
         setPostsError(
@@ -117,7 +127,7 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
     };
 
     fetchPosts();
-  }, [data.channelId, data.type]);
+  }, [data.channelId, data.type, getToken]);
 
   // Update node data
   const updateData = useCallback(

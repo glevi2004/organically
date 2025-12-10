@@ -1,5 +1,6 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { getAuth, Auth } from "firebase-admin/auth";
 
 // Initialize Firebase Admin SDK
 // This bypasses Firestore security rules and is used for server-side operations
@@ -133,4 +134,25 @@ export function getAdminDb(): Firestore {
 // Lazy initialization - only initialize when first accessed
 export const adminDb = {
   collection: (name: string) => getAdminDb().collection(name),
+};
+
+// Auth instance for token verification
+let adminAuthInstance: Auth | null = null;
+
+export function getAdminAuth(): Auth {
+  if (adminAuthInstance) {
+    return adminAuthInstance;
+  }
+  const app = getFirebaseAdmin();
+  adminAuthInstance = getAuth(app);
+  return adminAuthInstance;
+}
+
+export const adminAuth = {
+  verifyIdToken: (token: string) => getAdminAuth().verifyIdToken(token),
+  verifySessionCookie: (cookie: string, checkRevoked?: boolean) =>
+    getAdminAuth().verifySessionCookie(cookie, checkRevoked),
+  createSessionCookie: (idToken: string, options: { expiresIn: number }) =>
+    getAdminAuth().createSessionCookie(idToken, options),
+  getUser: (uid: string) => getAdminAuth().getUser(uid),
 };
