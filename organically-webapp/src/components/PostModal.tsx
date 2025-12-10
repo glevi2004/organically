@@ -563,7 +563,12 @@ export function PostModal({
         onOpenChange(false);
       }
     },
-    [isScheduleDateInPast, hasUnsavedChanges, onOpenChange, showReadyConfirmDialog]
+    [
+      isScheduleDateInPast,
+      hasUnsavedChanges,
+      onOpenChange,
+      showReadyConfirmDialog,
+    ]
   );
 
   // Handle modal close with validation
