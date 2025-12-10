@@ -13,6 +13,7 @@ import {
   GripVertical,
   Calendar as CalendarIcon,
   CalendarDays,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -69,6 +70,14 @@ const getStatusColor = (status: string) => {
   return colors[status as keyof typeof colors] || colors.idea;
 };
 
+// Helper to check if scheduled date is in the past
+const isScheduledDateInPast = (post: Post) => {
+  if (!post.scheduledDate) return false;
+  if (post.status === "posted") return false;
+  const scheduledDate = new Date(post.scheduledDate);
+  return scheduledDate < new Date();
+};
+
 // Get date key for grouping posts (YYYY-MM-DD format)
 const getDateKey = (date: Date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -112,6 +121,11 @@ function SortableCalendarPostCard({
       )}
     >
       <div className="flex items-center gap-1">
+        {/* Warning indicator for past dates */}
+        {isScheduledDateInPast(post) && (
+          <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+        )}
+        
         {/* Card Content - Clickable */}
         <div
           className="flex-1 flex items-center gap-1 min-w-0"
@@ -159,6 +173,10 @@ function CalendarPostCardOverlay({ post }: { post: Post }) {
       )}
     >
       <div className="flex items-center gap-1">
+        {/* Warning indicator for past dates */}
+        {isScheduledDateInPast(post) && (
+          <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+        )}
         <div className="flex items-center gap-0.5 shrink-0">
           {post.platforms.map((platformId) => {
             const logo = getPlatformIcon(platformId);
