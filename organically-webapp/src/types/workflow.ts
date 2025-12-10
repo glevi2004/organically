@@ -23,6 +23,7 @@ export interface TriggerNodeData {
   type: TriggerType;
   label: string;
   channelId?: string;
+  postIds?: string[]; // For post_comment triggers - empty array = all posts, populated = specific posts
   keywords?: string[];
   matchType?: 'exact' | 'contains' | 'starts_with';
   caseSensitive?: boolean;
@@ -198,6 +199,7 @@ export const triggerTemplates: NodeTemplate[] = [
       nodeType: 'trigger',
       type: 'post_comment',
       label: 'Post Comment',
+      postIds: [],
       keywords: [],
       matchType: 'contains',
       caseSensitive: false,
