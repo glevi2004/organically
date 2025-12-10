@@ -1,13 +1,21 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState, useEffect } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
-import { MessageCircle, MessageSquare, Zap, Plus, X } from "lucide-react";
+import {
+  MessageCircle,
+  MessageSquare,
+  Zap,
+  Plus,
+  X,
+  Loader2,
+} from "lucide-react";
 import { TriggerNodeData, TriggerType } from "@/types/workflow";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -17,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
 
 // Icon and color configuration for each trigger type
 const triggerConfig: Record<
@@ -45,6 +54,15 @@ interface TriggerNodeProps {
   selected?: boolean;
 }
 
+interface InstagramPost {
+  id: string;
+  caption: string;
+  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
+  thumbnail_url?: string;
+  permalink: string;
+  timestamp: string;
+}
+
 export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
   const { setNodes } = useReactFlow();
   const { activeOrganization } = useOrganization();
@@ -52,12 +70,54 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
   const channels =
     activeOrganization?.channels?.filter((c) => c.isActive) || [];
 
+  const [posts, setPosts] = useState<InstagramPost[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [postsError, setPostsError] = useState<string | null>(null);
+
   const config = triggerConfig[data.type] || {
     icon: Zap,
     color: "text-blue-500",
     bg: "bg-blue-500/10",
   };
   const Icon = config.icon;
+
+  // Fetch posts when channel is selected and trigger type is post_comment
+  useEffect(() => {
+    const fetchPosts = async () => {
+      if (data.type !== "post_comment" || !data.channelId) {
+        setPosts([]);
+        setPostsError(null);
+        return;
+      }
+
+      setLoadingPosts(true);
+      setPostsError(null);
+
+      try {
+        const response = await fetch(
+          `/api/instagram/posts?channelId=${data.channelId}&limit=25`
+        );
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to fetch posts");
+        }
+
+        const result = await response.json();
+        setPosts(result.data || []);
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+        setPostsError(
+          error instanceof Error ? error.message : "Failed to fetch posts"
+        );
+        setPosts([]);
+      } finally {
+        setLoadingPosts(false);
+      }
+    };
+
+    fetchPosts();
+  }, [data.channelId, data.type]);
 
   // Update node data
   const updateData = useCallback(
@@ -90,6 +150,38 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
     updateData({ keywords: data.keywords?.filter((k) => k !== keyword) || [] });
   };
 
+  // Search state for posts
+  const [postSearch, setPostSearch] = useState("");
+
+  // Handle post selection
+  const handlePostToggle = (postId: string) => {
+    const currentPostIds = data.postIds || [];
+    const isSelected = currentPostIds.includes(postId);
+
+    if (isSelected) {
+      // Remove post from selection
+      const newPostIds = currentPostIds.filter((id) => id !== postId);
+      updateData({ postIds: newPostIds });
+    } else {
+      // Add post to selection
+      updateData({ postIds: [...currentPostIds, postId] });
+    }
+  };
+
+  const selectedPostIds = data.postIds || [];
+  const selectedCount = selectedPostIds.length;
+
+  // Filter posts based on search
+  const filteredPosts = posts.filter((post) =>
+    (post.caption || "").toLowerCase().includes(postSearch.toLowerCase())
+  );
+
+  // Truncate caption for display
+  const truncateCaption = (caption: string, maxLength: number = 50) => {
+    if (caption.length <= maxLength) return caption;
+    return caption.substring(0, maxLength) + "...";
+  };
+
   return (
     <div
       className={cn(
@@ -118,7 +210,9 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
           <Label className="text-xs text-muted-foreground">Channel</Label>
           <Select
             value={data.channelId || ""}
-            onValueChange={(value) => updateData({ channelId: value })}
+            onValueChange={(value) => {
+              updateData({ channelId: value, postIds: [] }); // Reset post selection when channel changes
+            }}
           >
             <SelectTrigger className="h-9 text-sm">
               <SelectValue placeholder="Select a channel..." />
@@ -148,6 +242,101 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Post Selection - Only for post_comment trigger */}
+        {data.type === "post_comment" && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Posts</Label>
+              {selectedCount > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {selectedCount} selected
+                </Badge>
+              )}
+            </div>
+
+            {!data.channelId ? (
+              <p className="text-xs text-muted-foreground py-2">
+                Select a channel first
+              </p>
+            ) : loadingPosts ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : postsError ? (
+              <p className="text-xs text-destructive py-2">{postsError}</p>
+            ) : posts.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">
+                No posts found for this channel
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {/* Search Input */}
+                <Input
+                  placeholder="Search posts..."
+                  value={postSearch}
+                  onChange={(e) => setPostSearch(e.target.value)}
+                  className="h-8 text-xs"
+                />
+
+                {/* Posts List */}
+                <div
+                  className="max-h-[180px] overflow-y-auto border rounded-md p-2 space-y-1 nowheel"
+                  onWheelCapture={(e) => e.stopPropagation()}
+                >
+                  {filteredPosts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2 text-center">
+                      No posts match your search
+                    </p>
+                  ) : (
+                    filteredPosts.map((post) => {
+                      const isSelected = selectedPostIds.includes(post.id);
+                      return (
+                        <div
+                          key={post.id}
+                          className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md cursor-pointer"
+                          onClick={() => handlePostToggle(post.id)}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => handlePostToggle(post.id)}
+                            id={`post-${post.id}`}
+                            onClick={(e: React.MouseEvent) =>
+                              e.stopPropagation()
+                            }
+                          />
+                          {post.thumbnail_url && (
+                            <div className="relative w-10 h-10 rounded overflow-hidden shrink-0">
+                              <Image
+                                src={post.thumbnail_url}
+                                alt="Post thumbnail"
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          )}
+                          <label
+                            htmlFor={`post-${post.id}`}
+                            className="text-xs cursor-pointer flex-1 min-w-0"
+                          >
+                            <div className="truncate">
+                              {post.caption
+                                ? truncateCaption(post.caption, 40)
+                                : "Untitled post"}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {new Date(post.timestamp).toLocaleDateString()}
+                            </div>
+                          </label>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Keywords */}
         <div className="space-y-2">
