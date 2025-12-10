@@ -38,6 +38,27 @@ service cloud.firestore {
       // Delete: must own the document
       allow delete: if isAuthenticated() 
                     && resource.data.userId == request.auth.uid;
+
+      // --- AUTOMATIONS SUBCOLLECTION ---
+      match /automations/{automationId} {
+        // Helper to check if user owns the parent organization
+        function isOrgOwner() {
+          return isAuthenticated() 
+            && get(/databases/$(database)/documents/organizations/$(organizationId)).data.userId == request.auth.uid;
+        }
+
+        // Read: must own the parent organization
+        allow read: if isOrgOwner();
+
+        // Create: must own the parent organization
+        allow create: if isOrgOwner();
+
+        // Update: must own the parent organization
+        allow update: if isOrgOwner();
+
+        // Delete: must own the parent organization
+        allow delete: if isOrgOwner();
+      }
     }
 
 
