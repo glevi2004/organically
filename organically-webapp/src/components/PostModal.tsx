@@ -12,7 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, Trash2, Send, Instagram } from "lucide-react";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { Loader2, Trash2, Send, Instagram } from "lucide-react";
 import { toast } from "sonner";
 import {
   createPost,
@@ -368,6 +369,14 @@ export function PostModal({
       return;
     }
 
+    // Validate scheduled date before creating
+    if (isScheduleDateInPast()) {
+      toast.error(
+        "Please select a future date and time (at least 5 minutes from now) before creating"
+      );
+      return;
+    }
+
     try {
       setIsSaving(true);
 
@@ -556,10 +565,69 @@ export function PostModal({
     }
   };
 
+  // Check if scheduled date is in the past (validation for closing modal)
+  const isScheduleDateInPast = useCallback(() => {
+    if (!editedPost.scheduledDate) return false;
+    if (editedPost.status === "posted") return false;
+
+    // Handle various date formats (Date object, Firestore Timestamp, string)
+    let scheduledDate: Date;
+    if (editedPost.scheduledDate instanceof Date) {
+      scheduledDate = editedPost.scheduledDate;
+    } else if (
+      typeof editedPost.scheduledDate === "object" &&
+      "toDate" in editedPost.scheduledDate
+    ) {
+      // Firestore Timestamp
+      scheduledDate = (
+        editedPost.scheduledDate as { toDate: () => Date }
+      ).toDate();
+    } else {
+      scheduledDate = new Date(editedPost.scheduledDate);
+    }
+
+    // Check if valid date
+    if (isNaN(scheduledDate.getTime())) return false;
+
+    const minDate = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+    return scheduledDate.getTime() < minDate.getTime();
+  }, [editedPost.scheduledDate, editedPost.status]);
+
+  // Handle modal close with validation
+  const handleModalClose = useCallback(
+    (open: boolean) => {
+      if (!open && isScheduleDateInPast()) {
+        toast.error(
+          "Please select a future date and time (at least 5 minutes from now) before closing"
+        );
+        return;
+      }
+      onOpenChange(open);
+    },
+    [isScheduleDateInPast, onOpenChange]
+  );
+
+  // Handle cancel button click
+  const handleCancel = useCallback(() => {
+    if (isScheduleDateInPast()) {
+      toast.error("Please select a future date and time before canceling");
+      return;
+    }
+    onOpenChange(false);
+  }, [isScheduleDateInPast, onOpenChange]);
+
   // Handle saving media for existing posts (edit mode)
   // Also handles scheduling if a future date is set
   const handleSaveWithMedia = async () => {
     if (!editedPost || !editedPost.id) return;
+
+    // Validate scheduled date before saving
+    if (isScheduleDateInPast()) {
+      toast.error(
+        "Please select a future date and time (at least 5 minutes from now) before saving"
+      );
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -690,8 +758,22 @@ export function PostModal({
   if (!editedPost) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1100px] w-[95vw] p-0 gap-0 overflow-hidden">
+    <Dialog open={open} onOpenChange={handleModalClose}>
+      <DialogContent
+        className="sm:max-w-[1100px] w-[95vw] p-0 gap-0 overflow-hidden"
+        onInteractOutside={(e) => {
+          if (isScheduleDateInPast()) {
+            e.preventDefault();
+            toast.error("Please select a future date and time before closing");
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isScheduleDateInPast()) {
+            e.preventDefault();
+            toast.error("Please select a future date and time before closing");
+          }
+        }}
+      >
         <VisuallyHidden>
           <DialogTitle>{isEditMode ? "Edit Post" : "Create Post"}</DialogTitle>
         </VisuallyHidden>
@@ -798,60 +880,24 @@ export function PostModal({
                 </DropdownMenu>
 
                 {/* Scheduled Date */}
-                <button
-                  onClick={() => {
-                    const input = document.getElementById(
-                      "schedule-input"
-                    ) as HTMLInputElement;
-                    input?.showPicker?.();
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-                >
-                  <Calendar className="w-3 h-3" />
-                  {editedPost.scheduledDate
-                    ? new Date(editedPost.scheduledDate).toLocaleDateString()
-                    : "Schedule"}
-                </button>
-                <input
-                  id="schedule-input"
-                  type="datetime-local"
-                  min={(() => {
-                    const minDate = new Date(Date.now() + 5 * 60 * 1000);
-                    const year = minDate.getFullYear();
-                    const month = String(minDate.getMonth() + 1).padStart(
-                      2,
-                      "0"
-                    );
-                    const day = String(minDate.getDate()).padStart(2, "0");
-                    const hours = String(minDate.getHours()).padStart(2, "0");
-                    const minutes = String(minDate.getMinutes()).padStart(
-                      2,
-                      "0"
-                    );
-                    return `${year}-${month}-${day}T${hours}:${minutes}`;
-                  })()}
-                  value={(() => {
-                    // Use scheduled date if set, otherwise default to 5 min from now
-                    const d = editedPost.scheduledDate
+                <DateTimePicker
+                  value={
+                    editedPost.scheduledDate
                       ? new Date(editedPost.scheduledDate)
-                      : new Date(Date.now() + 5 * 60 * 1000);
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, "0");
-                    const day = String(d.getDate()).padStart(2, "0");
-                    const hours = String(d.getHours()).padStart(2, "0");
-                    const minutes = String(d.getMinutes()).padStart(2, "0");
-                    return `${year}-${month}-${day}T${hours}:${minutes}`;
-                  })()}
-                  onChange={(e) => {
+                      : undefined
+                  }
+                  onChange={(date) => {
                     setEditedPost({
                       ...editedPost,
-                      scheduledDate: e.target.value
-                        ? new Date(e.target.value)
-                        : undefined,
+                      scheduledDate: date,
                     });
+                    // Auto-save when date changes in edit mode
+                    if (isEditMode && date) {
+                      handleFieldSave();
+                    }
                   }}
-                  onBlur={handleFieldSave}
-                  className="sr-only"
+                  placeholder="Schedule"
+                  className="h-8 text-xs"
                 />
 
                 {/* Delete Button - Only in edit mode */}
@@ -966,7 +1012,7 @@ export function PostModal({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onOpenChange(false)}
+                      onClick={handleCancel}
                       disabled={isSaving}
                     >
                       Cancel
