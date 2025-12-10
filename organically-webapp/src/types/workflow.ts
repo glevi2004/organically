@@ -1,85 +1,85 @@
-import { Node, Edge } from '@xyflow/react';
+import { Node, Edge } from "@xyflow/react";
 
 // ============================================
 // Node Types
 // ============================================
 
-export type WorkflowNodeType = 
-  | 'trigger' 
-  | 'action' 
-  | 'condition'
-  | 'delay';
+export type WorkflowNodeType = "trigger" | "action" | "condition" | "delay";
 
 // ============================================
 // Trigger Types & Data
 // ============================================
 
-export type TriggerType = 
-  | 'direct_message' 
-  | 'post_comment';
+export type TriggerType = "direct_message" | "post_comment";
 
 export interface TriggerNodeData {
-  nodeType: 'trigger';
+  nodeType: "trigger";
   type: TriggerType;
   label: string;
   channelId?: string;
   postIds?: string[]; // For post_comment triggers - empty array = all posts, populated = specific posts
   keywords?: string[];
-  matchType?: 'exact' | 'contains' | 'starts_with';
+  matchType?: "exact" | "contains" | "starts_with";
   caseSensitive?: boolean;
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 // ============================================
 // Action Types & Data
 // ============================================
 
-export type ActionType = 
-  | 'send_message' 
-  | 'reply_comment';
+export type ActionType = "send_message" | "reply_comment";
 
 export interface ActionNodeData {
-  nodeType: 'action';
+  nodeType: "action";
   type: ActionType;
   label: string;
   channelId?: string;
   messageTemplate?: string;
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 // ============================================
 // Condition Types & Data
 // ============================================
 
-export type ConditionField = 'message' | 'username' | 'follower_count';
-export type ConditionOperator = 'contains' | 'not_contains' | 'equals' | 'not_equals';
+export type ConditionField = "message" | "username" | "follower_count";
+export type ConditionOperator =
+  | "contains"
+  | "not_contains"
+  | "equals"
+  | "not_equals";
 
 export interface ConditionNodeData {
-  nodeType: 'condition';
+  nodeType: "condition";
   label: string;
   field: ConditionField;
   operator: ConditionOperator;
   value: string;
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 // ============================================
 // Delay Types & Data
 // ============================================
 
-export type DelayUnit = 'seconds' | 'minutes' | 'hours' | 'days';
+export type DelayUnit = "seconds" | "minutes" | "hours" | "days";
 
 export interface DelayNodeData {
-  nodeType: 'delay';
+  nodeType: "delay";
   label: string;
   duration: number;
   unit: DelayUnit;
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 // ============================================
 // Union Types
 // ============================================
 
-export type WorkflowNodeData = 
-  | TriggerNodeData 
-  | ActionNodeData 
+export type WorkflowNodeData =
+  | TriggerNodeData
+  | ActionNodeData
   | ConditionNodeData
   | DelayNodeData;
 
@@ -100,7 +100,7 @@ export interface Workflow {
   channelId: string;
   name: string;
   description?: string;
-  
+
   // React Flow data
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
@@ -109,14 +109,14 @@ export interface Workflow {
     y: number;
     zoom: number;
   };
-  
+
   // Status
   isActive: boolean;
-  
+
   // Stats
   triggerCount: number;
   lastTriggeredAt?: Date;
-  
+
   // Metadata
   createdAt: Date;
   updatedAt: Date;
@@ -128,34 +128,34 @@ export interface Workflow {
 // ============================================
 
 export const defaultTriggerData: TriggerNodeData = {
-  nodeType: 'trigger',
-  type: 'direct_message',
-  label: 'Direct Message',
+  nodeType: "trigger",
+  type: "direct_message",
+  label: "Direct Message",
   keywords: [],
-  matchType: 'contains',
+  matchType: "contains",
   caseSensitive: false,
 };
 
 export const defaultActionData: ActionNodeData = {
-  nodeType: 'action',
-  type: 'send_message',
-  label: 'Send Message',
-  messageTemplate: '',
+  nodeType: "action",
+  type: "send_message",
+  label: "Send Message",
+  messageTemplate: "",
 };
 
 export const defaultConditionData: ConditionNodeData = {
-  nodeType: 'condition',
-  label: 'If Condition',
-  field: 'message',
-  operator: 'contains',
-  value: '',
+  nodeType: "condition",
+  label: "If Condition",
+  field: "message",
+  operator: "contains",
+  value: "",
 };
 
 export const defaultDelayData: DelayNodeData = {
-  nodeType: 'delay',
-  label: 'Delay',
+  nodeType: "delay",
+  label: "Delay",
   duration: 5,
-  unit: 'minutes',
+  unit: "minutes",
 };
 
 // ============================================
@@ -164,7 +164,7 @@ export const defaultDelayData: DelayNodeData = {
 
 export interface NodeTemplate {
   type: WorkflowNodeType;
-  subType: TriggerType | ActionType | 'condition' | 'delay';
+  subType: TriggerType | ActionType | "condition" | "delay";
   label: string;
   icon: string; // Icon name from lucide-react
   color: string; // Tailwind color name
@@ -175,33 +175,33 @@ export interface NodeTemplate {
 
 export const triggerTemplates: NodeTemplate[] = [
   {
-    type: 'trigger',
-    subType: 'direct_message',
-    label: 'Direct Message',
-    icon: 'MessageCircle',
-    color: 'blue',
+    type: "trigger",
+    subType: "direct_message",
+    label: "Direct Message",
+    icon: "MessageCircle",
+    color: "blue",
     defaultData: {
-      nodeType: 'trigger',
-      type: 'direct_message',
-      label: 'Direct Message',
+      nodeType: "trigger",
+      type: "direct_message",
+      label: "Direct Message",
       keywords: [],
-      matchType: 'contains',
+      matchType: "contains",
       caseSensitive: false,
     },
   },
   {
-    type: 'trigger',
-    subType: 'post_comment',
-    label: 'Post Comment',
-    icon: 'MessageSquare',
-    color: 'orange',
+    type: "trigger",
+    subType: "post_comment",
+    label: "Post Comment",
+    icon: "MessageSquare",
+    color: "orange",
     defaultData: {
-      nodeType: 'trigger',
-      type: 'post_comment',
-      label: 'Post Comment',
+      nodeType: "trigger",
+      type: "post_comment",
+      label: "Post Comment",
       postIds: [],
       keywords: [],
-      matchType: 'contains',
+      matchType: "contains",
       caseSensitive: false,
     },
   },
@@ -209,55 +209,55 @@ export const triggerTemplates: NodeTemplate[] = [
 
 export const actionTemplates: NodeTemplate[] = [
   {
-    type: 'action',
-    subType: 'reply_comment',
-    label: 'Reply to Comment',
-    icon: 'Reply',
-    color: 'cyan',
+    type: "action",
+    subType: "reply_comment",
+    label: "Reply to Comment",
+    icon: "Reply",
+    color: "cyan",
     defaultData: {
-      nodeType: 'action',
-      type: 'reply_comment',
-      label: 'Reply to Comment',
-      messageTemplate: '',
+      nodeType: "action",
+      type: "reply_comment",
+      label: "Reply to Comment",
+      messageTemplate: "",
     },
     // Only available when Post Comment trigger is used
-    compatibleTriggers: ['post_comment'],
+    compatibleTriggers: ["post_comment"],
   },
   {
-    type: 'action',
-    subType: 'send_message',
-    label: 'Send Message',
-    icon: 'Send',
-    color: 'purple',
+    type: "action",
+    subType: "send_message",
+    label: "Send Message",
+    icon: "Send",
+    color: "purple",
     defaultData: {
-      nodeType: 'action',
-      type: 'send_message',
-      label: 'Send Message',
-      messageTemplate: '',
+      nodeType: "action",
+      type: "send_message",
+      label: "Send Message",
+      messageTemplate: "",
     },
     // Available for all triggers
-    compatibleTriggers: ['direct_message', 'post_comment'],
+    compatibleTriggers: ["direct_message", "post_comment"],
   },
 ];
 
 export const conditionTemplates: NodeTemplate[] = [
   {
-    type: 'condition',
-    subType: 'condition',
-    label: 'If Condition',
-    icon: 'GitBranch',
-    color: 'yellow',
+    type: "condition",
+    subType: "condition",
+    label: "If Condition",
+    icon: "GitBranch",
+    color: "yellow",
     defaultData: defaultConditionData,
   },
 ];
 
 export const delayTemplates: NodeTemplate[] = [
   {
-    type: 'delay',
-    subType: 'delay',
-    label: 'Delay',
-    icon: 'Clock',
-    color: 'amber',
+    type: "delay",
+    subType: "delay",
+    label: "Delay",
+    icon: "Clock",
+    color: "amber",
     defaultData: defaultDelayData,
   },
 ];
@@ -276,14 +276,16 @@ export const allNodeTemplates = [
 /**
  * Returns filtered action templates based on the trigger type in the workflow
  */
-export function getCompatibleActions(triggerType: TriggerType | null): NodeTemplate[] {
+export function getCompatibleActions(
+  triggerType: TriggerType | null
+): NodeTemplate[] {
   if (!triggerType) {
     // No trigger selected, show all actions
     return actionTemplates;
   }
-  
-  return actionTemplates.filter(
-    (action) => action.compatibleTriggers?.includes(triggerType)
+
+  return actionTemplates.filter((action) =>
+    action.compatibleTriggers?.includes(triggerType)
   );
 }
 
@@ -292,19 +294,21 @@ export function getCompatibleActions(triggerType: TriggerType | null): NodeTempl
 // ============================================
 
 export function isTriggerNode(data: WorkflowNodeData): data is TriggerNodeData {
-  return data.nodeType === 'trigger';
+  return data.nodeType === "trigger";
 }
 
 export function isActionNode(data: WorkflowNodeData): data is ActionNodeData {
-  return data.nodeType === 'action';
+  return data.nodeType === "action";
 }
 
-export function isConditionNode(data: WorkflowNodeData): data is ConditionNodeData {
-  return data.nodeType === 'condition';
+export function isConditionNode(
+  data: WorkflowNodeData
+): data is ConditionNodeData {
+  return data.nodeType === "condition";
 }
 
 export function isDelayNode(data: WorkflowNodeData): data is DelayNodeData {
-  return data.nodeType === 'delay';
+  return data.nodeType === "delay";
 }
 
 // ============================================
@@ -324,15 +328,15 @@ export function validateWorkflow(
   const errors: WorkflowValidationError[] = [];
 
   // Must have at least one trigger
-  const triggers = nodes.filter((n) => n.type === 'trigger');
+  const triggers = nodes.filter((n) => n.type === "trigger");
   if (triggers.length === 0) {
-    errors.push({ message: 'Workflow must have at least one trigger' });
+    errors.push({ message: "Workflow must have at least one trigger" });
   }
 
   // Must have at least one action
-  const actions = nodes.filter((n) => n.type === 'action');
+  const actions = nodes.filter((n) => n.type === "action");
   if (actions.length === 0) {
-    errors.push({ message: 'Workflow must have at least one action' });
+    errors.push({ message: "Workflow must have at least one action" });
   }
 
   // Check for disconnected nodes
@@ -343,7 +347,7 @@ export function validateWorkflow(
   });
 
   nodes.forEach((node) => {
-    if (node.type !== 'trigger' && !connectedNodeIds.has(node.id)) {
+    if (node.type !== "trigger" && !connectedNodeIds.has(node.id)) {
       errors.push({
         nodeId: node.id,
         message: `Node "${node.data.label}" is not connected`,
@@ -354,12 +358,17 @@ export function validateWorkflow(
   // Validate action compatibility with trigger
   if (triggers.length > 0) {
     const triggerData = triggers[0].data as TriggerNodeData;
-    
+
     actions.forEach((action) => {
       const actionData = action.data as ActionNodeData;
-      const template = actionTemplates.find((t) => t.subType === actionData.type);
-      
-      if (template && !template.compatibleTriggers?.includes(triggerData.type)) {
+      const template = actionTemplates.find(
+        (t) => t.subType === actionData.type
+      );
+
+      if (
+        template &&
+        !template.compatibleTriggers?.includes(triggerData.type)
+      ) {
         errors.push({
           nodeId: action.id,
           message: `"${actionData.label}" is not compatible with "${triggerData.label}" trigger`,
