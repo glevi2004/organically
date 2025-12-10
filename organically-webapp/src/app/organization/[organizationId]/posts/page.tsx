@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { PostModal } from "@/components/PostModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, Calendar, GripVertical } from "lucide-react";
+import { Plus, Loader2, Calendar, GripVertical, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { getPostsByOrganization, reorderPosts } from "@/services/postService";
 import { Post, PostStatus } from "@/types/post";
@@ -55,6 +55,14 @@ const getStatusColor = (status: PostStatus) => {
       "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
   };
   return colors[status];
+};
+
+// Helper to check if scheduled date is in the past
+const isScheduledDateInPast = (post: Post) => {
+  if (!post.scheduledDate) return false;
+  if (post.status === "posted") return false;
+  const scheduledDate = new Date(post.scheduledDate);
+  return scheduledDate < new Date();
 };
 
 // Sortable Post Card Component
@@ -120,9 +128,19 @@ function SortablePostCard({
             </p>
           </div>
           {post.scheduledDate && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
+            <p className={cn(
+              "text-xs flex items-center gap-1",
+              isScheduledDateInPast(post) ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+            )}>
+              {isScheduledDateInPast(post) ? (
+                <AlertTriangle className="w-3 h-3" />
+              ) : (
+                <Calendar className="w-3 h-3" />
+              )}
               {new Date(post.scheduledDate).toLocaleDateString()}
+              {isScheduledDateInPast(post) && (
+                <span className="text-[10px] ml-1">(past)</span>
+              )}
             </p>
           )}
         </div>
@@ -168,9 +186,19 @@ function PostCardOverlay({ post }: { post: Post }) {
             </p>
           </div>
           {post.scheduledDate && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
+            <p className={cn(
+              "text-xs flex items-center gap-1",
+              isScheduledDateInPast(post) ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+            )}>
+              {isScheduledDateInPast(post) ? (
+                <AlertTriangle className="w-3 h-3" />
+              ) : (
+                <Calendar className="w-3 h-3" />
+              )}
               {new Date(post.scheduledDate).toLocaleDateString()}
+              {isScheduledDateInPast(post) && (
+                <span className="text-[10px] ml-1">(past)</span>
+              )}
             </p>
           )}
         </div>
