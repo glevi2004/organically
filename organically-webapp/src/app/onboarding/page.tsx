@@ -13,10 +13,11 @@ import {
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { OnboardingLayout } from "@/components/onboarding/OnboardingLayout";
+import { StepTerms } from "@/components/onboarding/steps/StepTerms";
 import { Step1Basics } from "@/components/onboarding/steps/Step1Basics";
 import { Organization } from "@/types/organization";
 
-const TOTAL_STEPS = 1;
+const TOTAL_STEPS = 2;
 
 function OnboardingContent() {
   const router = useRouter();
@@ -29,7 +30,16 @@ function OnboardingContent() {
   const [loading, setLoading] = useState(false);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
 
-  // Step 1 data (Basics)
+  // Step 0: Terms acceptance data
+  const [termsData, setTermsData] = useState<{
+    termsAccepted: boolean;
+    privacyAccepted: boolean;
+  }>({
+    termsAccepted: false,
+    privacyAccepted: false,
+  });
+
+  // Step 1 data (Basics - now step 2)
   const [step1Data, setStep1Data] = useState<{
     name: string;
     imageFile?: File | null;
@@ -86,9 +96,13 @@ function OnboardingContent() {
           valuesMission: organizationData.valuesMission || "",
         });
 
-        // Resume from the next incomplete step
-        const nextStep = (organizationData.onboardingStep || 0) + 1;
-        setCurrentStep(Math.min(nextStep, TOTAL_STEPS));
+        // If user already has an organization, they've already accepted terms
+        // Skip to step 2
+        setTermsData({
+          termsAccepted: true,
+          privacyAccepted: true,
+        });
+        setCurrentStep(2);
       }
     } catch (error) {
       console.error("Error loading organization data:", error);
@@ -97,10 +111,27 @@ function OnboardingContent() {
   };
 
   const validateStep = (): boolean => {
-    if (!step1Data.name.trim()) {
-      toast.error("Please enter an organization name");
-      return false;
+    if (currentStep === 1) {
+      // Validate terms acceptance
+      if (!termsData.termsAccepted) {
+        toast.error("Please accept the Terms of Service to continue");
+        return false;
+      }
+      if (!termsData.privacyAccepted) {
+        toast.error("Please accept the Privacy Policy to continue");
+        return false;
+      }
+      return true;
     }
+
+    if (currentStep === 2) {
+      if (!step1Data.name.trim()) {
+        toast.error("Please enter an organization name");
+        return false;
+      }
+      return true;
+    }
+
     return true;
   };
 
@@ -109,6 +140,29 @@ function OnboardingContent() {
       return;
     }
 
+    // Step 1: Terms acceptance - just move to next step
+    if (currentStep === 1) {
+      // Store terms acceptance timestamp in user profile
+      if (user) {
+        try {
+          await updateUserProfile(
+            user.uid,
+            {
+              termsAcceptedAt: new Date(),
+              privacyAcceptedAt: new Date(),
+            },
+            user.email || undefined
+          );
+        } catch (error) {
+          console.warn("Failed to save terms acceptance:", error);
+          // Don't block the user, just log the warning
+        }
+      }
+      setCurrentStep(2);
+      return;
+    }
+
+    // Step 2: Create organization and complete
     setLoading(true);
 
     try {
@@ -130,7 +184,7 @@ function OnboardingContent() {
           valuesMission: step1Data.valuesMission || undefined,
         };
 
-        await saveOnboardingProgress(currentOrganizationId, 1, updateData);
+        await saveOnboardingProgress(currentOrganizationId, 2, updateData);
 
         // Complete onboarding
         if (user) {
@@ -168,17 +222,31 @@ function OnboardingContent() {
   };
 
   const handleBack = () => {
-    // No back for single step
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
   };
 
   const handleSkip = async () => {
+    // Can't skip terms
+    if (currentStep === 1) {
+      toast.error("You must accept the Terms and Privacy Policy to continue");
+      return;
+    }
+
     if (organizationId) {
       toast.info("You can complete setup later from your home");
       router.push(`/organization/${organizationId}/home`);
     } else {
-      toast.error("Please complete at least the first step");
+      toast.error("Please complete at least the organization setup");
     }
   };
+
+  // Determine if user can proceed
+  const canGoNext =
+    currentStep === 1
+      ? termsData.termsAccepted && termsData.privacyAccepted
+      : true;
 
   return (
     <OnboardingLayout
@@ -187,11 +255,16 @@ function OnboardingContent() {
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkip}
-      canGoBack={false}
-      canGoNext={true}
+      canGoBack={currentStep > 1}
+      canGoNext={canGoNext}
       isLoading={loading}
     >
-      <Step1Basics data={step1Data} onDataChange={setStep1Data} />
+      {currentStep === 1 && (
+        <StepTerms data={termsData} onDataChange={setTermsData} />
+      )}
+      {currentStep === 2 && (
+        <Step1Basics data={step1Data} onDataChange={setStep1Data} />
+      )}
     </OnboardingLayout>
   );
 }

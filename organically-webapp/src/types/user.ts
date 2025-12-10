@@ -8,4 +8,7 @@ export interface UserProfile {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   onboardingCompleted: boolean;
+  // Legal compliance
+  termsAcceptedAt?: Date | Timestamp;
+  privacyAcceptedAt?: Date | Timestamp;
 }
