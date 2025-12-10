@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useState, useEffect } from "react";
+import { memo, useCallback, useState, useEffect, useRef } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 import {
   MessageCircle,
@@ -192,6 +192,20 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
     return caption.substring(0, maxLength) + "...";
   };
 
+  // Ref to access the keyword input value for the button click
+  const keywordInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle adding keyword via button click
+  const handleAddKeywordClick = () => {
+    const input = keywordInputRef.current;
+    if (!input) return;
+    const keyword = input.value.trim();
+    if (keyword && !data.keywords?.includes(keyword)) {
+      updateData({ keywords: [...(data.keywords || []), keyword] });
+      input.value = "";
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -354,11 +368,18 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
           <Label className="text-xs text-muted-foreground">Keywords</Label>
           <div className="relative">
             <Input
+              ref={keywordInputRef}
               placeholder="Type keyword and press Enter..."
               className="h-9 text-sm pr-8"
               onKeyDown={handleKeywordKeyDown}
             />
-            <Plus className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <button
+              type="button"
+              onClick={handleAddKeywordClick}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded"
+            >
+              <Plus className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+            </button>
           </div>
           {data.keywords && data.keywords.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
