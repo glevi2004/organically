@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useMemo, useEffect } from 'react';
+import { useCallback, useRef, useMemo, useEffect, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -16,6 +16,7 @@ import {
   useReactFlow,
   BackgroundVariant,
   MarkerType,
+  OnSelectionChangeFunc,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -67,6 +68,13 @@ function WorkflowCanvasInner({
   
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  
+  // Track if any node is selected to disable canvas zoom when scrolling inside nodes
+  const [hasSelectedNode, setHasSelectedNode] = useState(false);
+  
+  const onSelectionChange: OnSelectionChangeFunc = useCallback(({ nodes: selectedNodes }) => {
+    setHasSelectedNode(selectedNodes.length > 0);
+  }, []);
 
   // Notify parent of changes
   useEffect(() => {
@@ -201,6 +209,7 @@ function WorkflowCanvasInner({
           onConnect={onConnect}
           onDragOver={onDragOver}
           onDrop={onDrop}
+          onSelectionChange={onSelectionChange}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           fitView
@@ -211,6 +220,7 @@ function WorkflowCanvasInner({
           multiSelectionKeyCode={['Control', 'Meta']}
           panOnDrag={true}
           selectionOnDrag={false}
+          zoomOnScroll={!hasSelectedNode}
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
           elementsSelectable={!readOnly}
