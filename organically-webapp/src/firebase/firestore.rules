@@ -47,14 +47,20 @@ service cloud.firestore {
       allow read: if isAuthenticated();
 
       // Create: must be authenticated and set userId to own uid
+      // Cannot create a post with status "posted" (only server can set that)
       allow create: if isAuthenticated()
-                    && request.resource.data.userId == request.auth.uid;
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status != 'posted';
 
       // Update: must own the document
+      // Cannot update posts that are already "posted" (published posts are immutable)
+      // Cannot manually set status to "posted" (only server can do that via Admin SDK)
       allow update: if isAuthenticated()
-                    && resource.data.userId == request.auth.uid;
+                    && resource.data.userId == request.auth.uid
+                    && resource.data.status != 'posted'
+                    && request.resource.data.status != 'posted';
 
-      // Delete: must own the document
+      // Delete: must own the document (allowed even for posted posts)
       allow delete: if isAuthenticated() 
                     && resource.data.userId == request.auth.uid;
     }

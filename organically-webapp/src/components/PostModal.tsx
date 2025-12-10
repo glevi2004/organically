@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { PostEditor, SaveStatus } from "@/components/PostEditor";
+import { PostEditor } from "@/components/PostEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -119,7 +119,9 @@ export function PostModal({
   const [editedPost, setEditedPost] = useState<
     Omit<Post, "id" | "createdAt" | "updatedAt"> & { id?: string }
   >(getDefaultPost());
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
+  // Check if post is already published (read-only mode)
+  const isPosted = editedPost?.status === "posted";
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -132,11 +134,6 @@ export function PostModal({
 
   // Media state (includes local files pending upload)
   const [localMedia, setLocalMedia] = useState<LocalMedia[]>([]);
-
-  // Refs for debounced save
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSavedRef = useRef<string>("");
 
   // Get username from channel or organization
   const username =
@@ -159,12 +156,6 @@ export function PostModal({
             isUploaded: true,
           }))
         );
-        lastSavedRef.current = JSON.stringify({
-          content: post.content,
-          scheduledDate: post.scheduledDate?.getTime(),
-          status: post.status,
-          platforms: post.platforms,
-        });
       } else {
         // Reset to default for new post
         setEditedPost({
@@ -173,7 +164,6 @@ export function PostModal({
           userId,
         });
         setLocalMedia([]);
-        lastSavedRef.current = "";
       }
       setUploadProgress(null);
     }
@@ -193,88 +183,14 @@ export function PostModal({
     };
   }, []);
 
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
-    };
-  }, []);
-
-  // Debounced save for content changes (only in edit mode)
-  const debouncedSave = useCallback(
-    async (
-      postToSave: Omit<Post, "id" | "createdAt" | "updatedAt"> & { id?: string }
-    ) => {
-      if (!isEditMode || !postToSave.id) return;
-
-      if (savedTimeoutRef.current) {
-        clearTimeout(savedTimeoutRef.current);
-      }
-
-      const snapshot = JSON.stringify({
-        content: postToSave.content,
-        scheduledDate: postToSave.scheduledDate?.getTime(),
-        status: postToSave.status,
-        platforms: postToSave.platforms,
-      });
-
-      if (snapshot === lastSavedRef.current) {
-        return;
-      }
-
-      try {
-        setSaveStatus("saving");
-        await updatePost(postToSave.id, {
-          content: postToSave.content,
-          scheduledDate: postToSave.scheduledDate,
-          platforms: postToSave.platforms,
-        });
-        lastSavedRef.current = snapshot;
-        onPostUpdated?.(postToSave as Post);
-        setSaveStatus("saved");
-
-        savedTimeoutRef.current = setTimeout(() => {
-          setSaveStatus("idle");
-        }, 2000);
-      } catch (error) {
-        console.error("Error saving post:", error);
-        toast.error("Failed to save post");
-        setSaveStatus("idle");
-      }
-    },
-    [isEditMode, onPostUpdated]
-  );
-
-  // Handle content change with debounce
+  // Handle content change (no auto-save)
   const handleContentChange = useCallback(
     (content: string) => {
       if (!editedPost) return;
-
-      const updatedPost = { ...editedPost, content };
-      setEditedPost(updatedPost);
-
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      saveTimeoutRef.current = setTimeout(() => {
-        debouncedSave(updatedPost);
-      }, 1500);
+      setEditedPost({ ...editedPost, content });
     },
-    [editedPost, debouncedSave]
+    [editedPost]
   );
-
-  // Handle field blur save (immediate)
-  const handleFieldSave = async () => {
-    if (!editedPost) return;
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    await debouncedSave(editedPost);
-  };
 
   const handleStatusChange = async (newStatus: PostStatus) => {
     if (!editedPost) return;
@@ -679,25 +595,25 @@ export function PostModal({
         allMedia = [...allMedia, ...newlyUploaded].sort(
           (a, b) => a.order - b.order
         );
-
-        // Update post with all media
-        await updatePost(editedPost.id, { media: allMedia });
-
-        // Update local state
-        setLocalMedia(allMedia.map((m) => ({ ...m, isUploaded: true })));
-        setEditedPost({ ...editedPost, media: allMedia });
-
-        onPostUpdated?.({ ...editedPost, media: allMedia } as Post);
       }
 
-      // Also save other fields
-      await debouncedSave(editedPost);
+      // Save all changes at once: content, scheduledDate, platforms, media
+      await updatePost(editedPost.id, {
+        content: editedPost.content,
+        scheduledDate: editedPost.scheduledDate,
+        platforms: editedPost.platforms,
+        media: allMedia,
+      });
+
+      // Update local state
+      setLocalMedia(allMedia.map((m) => ({ ...m, isUploaded: true })));
+      setEditedPost({ ...editedPost, media: allMedia });
+
+      onPostUpdated?.({ ...editedPost, media: allMedia } as Post);
 
       // Check if we should schedule the post
       // Conditions: status is "ready", has scheduled date at least 5 min in future, Instagram connected, has uploaded media
-      const uploadedMedia = [...existingMedia, ...allMedia].filter(
-        (m) => !isLocalBlobUrl(m.url)
-      );
+      const uploadedMedia = allMedia.filter((m) => !isLocalBlobUrl(m.url));
       const scheduledTime = editedPost.scheduledDate
         ? new Date(editedPost.scheduledDate)
         : null;
@@ -801,13 +717,16 @@ export function PostModal({
                       <button
                         key={platform.id}
                         onClick={() =>
+                          !isPosted &&
                           togglePlatform(platform.id as PostPlatform)
                         }
+                        disabled={isPosted}
                         className={cn(
                           "relative p-1.5 rounded-full transition-all",
                           isSelected
                             ? "bg-muted ring-2 ring-primary"
-                            : "bg-muted/50 hover:bg-muted opacity-50"
+                            : "bg-muted/50 hover:bg-muted opacity-50",
+                          isPosted && "cursor-not-allowed"
                         )}
                       >
                         <Image
@@ -825,59 +744,77 @@ export function PostModal({
                 <div className="h-5 w-px bg-border" />
 
                 {/* Status Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
+                {isPosted ? (
+                  <div
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium cursor-not-allowed",
+                      statusConfig[editedPost.status].bgColor,
+                      statusConfig[editedPost.status].textColor
+                    )}
+                  >
+                    <span
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
-                        statusConfig[editedPost.status].bgColor,
-                        statusConfig[editedPost.status].textColor,
-                        "hover:opacity-80 transition-opacity cursor-pointer"
+                        "w-2 h-2 rounded-full",
+                        statusConfig[editedPost.status].dotColor
                       )}
-                    >
-                      <span
+                    />
+                    {statusConfig[editedPost.status].label}
+                  </div>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
                         className={cn(
-                          "w-2 h-2 rounded-full",
-                          statusConfig[editedPost.status].dotColor
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
+                          statusConfig[editedPost.status].bgColor,
+                          statusConfig[editedPost.status].textColor,
+                          "hover:opacity-80 transition-opacity cursor-pointer"
                         )}
-                      />
-                      {statusConfig[editedPost.status].label}
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-52">
-                    {statusGroups.map((group, groupIndex) => (
-                      <div key={group.label}>
-                        {groupIndex > 0 && <DropdownMenuSeparator />}
-                        <DropdownMenuLabel className="text-sm text-muted-foreground font-normal">
-                          {group.label}
-                        </DropdownMenuLabel>
-                        {group.statuses.map((status) => (
-                          <DropdownMenuItem
-                            key={status}
-                            onClick={() => handleStatusChange(status)}
-                            className="cursor-pointer"
-                          >
-                            <span
-                              className={cn(
-                                "w-2.5 h-2.5 rounded-full",
-                                statusConfig[status].dotColor
-                              )}
-                            />
-                            <span
-                              className={cn(
-                                "px-2.5 py-1 rounded text-sm",
-                                statusConfig[status].bgColor,
-                                statusConfig[status].textColor
-                              )}
+                      >
+                        <span
+                          className={cn(
+                            "w-2 h-2 rounded-full",
+                            statusConfig[editedPost.status].dotColor
+                          )}
+                        />
+                        {statusConfig[editedPost.status].label}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-52">
+                      {statusGroups.map((group, groupIndex) => (
+                        <div key={group.label}>
+                          {groupIndex > 0 && <DropdownMenuSeparator />}
+                          <DropdownMenuLabel className="text-sm text-muted-foreground font-normal">
+                            {group.label}
+                          </DropdownMenuLabel>
+                          {group.statuses.map((status) => (
+                            <DropdownMenuItem
+                              key={status}
+                              onClick={() => handleStatusChange(status)}
+                              className="cursor-pointer"
                             >
-                              {statusConfig[status].label}
-                            </span>
-                          </DropdownMenuItem>
-                        ))}
-                      </div>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                              <span
+                                className={cn(
+                                  "w-2.5 h-2.5 rounded-full",
+                                  statusConfig[status].dotColor
+                                )}
+                              />
+                              <span
+                                className={cn(
+                                  "px-2.5 py-1 rounded text-sm",
+                                  statusConfig[status].bgColor,
+                                  statusConfig[status].textColor
+                                )}
+                              >
+                                {statusConfig[status].label}
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
                 {/* Scheduled Date */}
                 <DateTimePicker
@@ -887,17 +824,15 @@ export function PostModal({
                       : undefined
                   }
                   onChange={(date) => {
+                    if (isPosted) return;
                     setEditedPost({
                       ...editedPost,
                       scheduledDate: date,
                     });
-                    // Auto-save when date changes in edit mode
-                    if (isEditMode && date) {
-                      handleFieldSave();
-                    }
                   }}
                   placeholder="Schedule"
                   className="h-8 text-xs"
+                  disabled={isPosted}
                 />
 
                 {/* Delete Button - Only in edit mode */}
@@ -927,8 +862,8 @@ export function PostModal({
               <PostEditor
                 content={editedPost.content}
                 onChange={handleContentChange}
-                saveStatus={saveStatus}
                 placeholder="What's happening?"
+                readOnly={isPosted}
               />
             </div>
 
@@ -938,6 +873,7 @@ export function PostModal({
                 media={localMedia}
                 onChange={handleMediaChange}
                 maxFiles={10}
+                disabled={isPosted}
               />
             </div>
 
@@ -946,21 +882,23 @@ export function PostModal({
               <div className="flex items-center gap-2">
                 {isEditMode ? (
                   <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSaveWithMedia}
-                      disabled={isSaving || isPublishing}
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          {uploadProgress || "Saving..."}
-                        </>
-                      ) : (
-                        "Save"
-                      )}
-                    </Button>
+                    {!isPosted && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveWithMedia}
+                        disabled={isSaving || isPublishing}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            {uploadProgress || "Saving..."}
+                          </>
+                        ) : (
+                          "Save"
+                        )}
+                      </Button>
+                    )}
                     {/* Publish Button */}
                     {editedPost.status === "posted" ? (
                       <Button

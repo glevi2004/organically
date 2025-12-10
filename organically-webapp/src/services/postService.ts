@@ -28,6 +28,18 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
       throw new Error("At least one platform must be selected");
     }
 
+    // Validate scheduled date if provided - must be at least 5 minutes in the future
+    if (input.scheduledDate) {
+      const scheduledDate = new Date(input.scheduledDate);
+      const minDate = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+
+      if (scheduledDate.getTime() < minDate.getTime()) {
+        throw new Error(
+          "Scheduled date must be at least 5 minutes in the future"
+        );
+      }
+    }
+
     const postId = doc(collection(db, POSTS_COLLECTION)).id;
     const now = new Date();
 
@@ -209,12 +221,34 @@ function removeUndefinedValues(obj: any): any {
 
 /**
  * Update a post
+ * Note: Cannot update posts with status "posted" (except via internal server functions)
  */
 export async function updatePost(
   postId: string,
-  updates: Partial<Omit<Post, "id" | "organizationId" | "userId" | "createdAt">>
+  updates: Partial<Omit<Post, "id" | "organizationId" | "userId" | "createdAt">>,
+  options?: { allowPostedUpdate?: boolean }
 ): Promise<void> {
   try {
+    // Check if post is already posted - block all updates (unless explicitly allowed for server operations)
+    if (!options?.allowPostedUpdate) {
+      const existingPost = await getPost(postId);
+      if (existingPost?.status === "posted") {
+        throw new Error("Cannot update a published post");
+      }
+    }
+
+    // Validate scheduled date if provided - must be at least 5 minutes in the future
+    if (updates.scheduledDate !== undefined && updates.scheduledDate !== null) {
+      const scheduledDate = new Date(updates.scheduledDate);
+      const minDate = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+
+      if (scheduledDate.getTime() < minDate.getTime()) {
+        throw new Error(
+          "Scheduled date must be at least 5 minutes in the future"
+        );
+      }
+    }
+
     const docRef = doc(db, POSTS_COLLECTION, postId);
 
     // Filter out undefined values - Firestore doesn't accept them
@@ -317,6 +351,7 @@ export async function updatePostOrder(
 /**
  * Batch update post orders (used after drag and drop)
  * Note: Users cannot set status to "posted" - only the server (Inngest) can do this
+ * Note: Cannot reorder posts that are already published
  */
 export async function reorderPosts(
   posts: Array<{ id: string; order: number; status?: PostStatus }>
@@ -325,8 +360,23 @@ export async function reorderPosts(
     // Validate: users cannot set status to "posted"
     for (const post of posts) {
       if (post.status === "posted") {
-        throw new Error("Posts can only be marked as posted by the system after publishing");
+        throw new Error(
+          "Posts can only be marked as posted by the system after publishing"
+        );
       }
+    }
+
+    // Check if any posts are already posted - cannot reorder published posts
+    const postChecks = await Promise.all(
+      posts.map(async (post) => {
+        const existing = await getPost(post.id);
+        return { id: post.id, isPosted: existing?.status === "posted" };
+      })
+    );
+
+    const postedPosts = postChecks.filter((p) => p.isPosted);
+    if (postedPosts.length > 0) {
+      throw new Error("Cannot reorder published posts");
     }
 
     const batch = writeBatch(db);

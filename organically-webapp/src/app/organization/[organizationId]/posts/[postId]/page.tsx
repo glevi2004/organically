@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { PostEditor, SaveStatus } from "@/components/PostEditor";
+import { PostEditor } from "@/components/PostEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, CircleDot, Globe, Calendar, Clock } from "lucide-react";
+import { Loader2, CircleDot, Globe, Calendar, Clock, Save } from "lucide-react";
 import { toast } from "sonner";
 import { getPost, updatePost, reorderPosts } from "@/services/postService";
 import { Post, PostStatus, PostPlatform } from "@/types/post";
@@ -24,7 +24,6 @@ import Image from "next/image";
 import { PLATFORMS } from "@/lib/organization-constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 
 // Status configuration with colors and grouping
 const statusConfig: Record<
@@ -63,12 +62,6 @@ const statusGroups = [
   { label: "Complete", statuses: ["ready", "posted"] as PostStatus[] },
 ];
 
-// Helper to get platform icon
-const getPlatformIcon = (platformId: string) => {
-  const platform = PLATFORMS.find((p) => p.id === platformId);
-  return platform?.logo;
-};
-
 export default function PostEditPage() {
   const params = useParams();
   const router = useRouter();
@@ -79,12 +72,11 @@ export default function PostEditPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [editedPost, setEditedPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
-  // Refs for debounced save
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSavedRef = useRef<string>("");
+  // Check if post is already published (read-only mode)
+  const isPosted = editedPost?.status === "posted";
 
   // Load the post
   useEffect(() => {
@@ -104,11 +96,6 @@ export default function PostEditPage() {
         setPost(fetchedPost);
         setEditedPost(fetchedPost);
         setCustomTitle(fetchedPost.content?.slice(0, 50) || "Post");
-        // Initialize lastSaved ref to prevent unnecessary first save
-        lastSavedRef.current = JSON.stringify({
-          content: fetchedPost.content,
-          scheduledDate: fetchedPost.scheduledDate?.getTime(),
-        });
       } else {
         toast.error("Post not found");
         router.back();
@@ -122,100 +109,56 @@ export default function PostEditPage() {
     }
   };
 
-  // Debounced save for content changes
-  const debouncedSave = useCallback(async (postToSave: Post) => {
-    // Clear any existing saved timeout
-    if (savedTimeoutRef.current) {
-      clearTimeout(savedTimeoutRef.current);
-    }
+  // Handle content change (no auto-save)
+  const handleContentChange = (content: string) => {
+    if (!editedPost) return;
+    setEditedPost({ ...editedPost, content });
+    setHasChanges(true);
+  };
 
-    // Create a snapshot to compare
-    const snapshot = JSON.stringify({
-      content: postToSave.content,
-      scheduledDate: postToSave.scheduledDate?.getTime(),
-    });
+  // Save all changes
+  const handleSave = async () => {
+    if (!editedPost || !post) return;
 
-    // Skip if nothing changed since last save
-    if (snapshot === lastSavedRef.current) {
+    // Don't allow saving posted posts
+    if (isPosted) {
+      toast.error("Cannot edit a published post");
       return;
     }
 
     try {
-      setSaveStatus("saving");
-      await updatePost(postToSave.id, {
-        content: postToSave.content,
-        scheduledDate: postToSave.scheduledDate,
+      setIsSaving(true);
+      await updatePost(editedPost.id, {
+        content: editedPost.content,
+        scheduledDate: editedPost.scheduledDate,
+        platforms: editedPost.platforms,
       });
-      lastSavedRef.current = snapshot;
-      setPost(postToSave);
-      setSaveStatus("saved");
-
-      // Reset to idle after 2 seconds
-      savedTimeoutRef.current = setTimeout(() => {
-        setSaveStatus("idle");
-      }, 2000);
+      setPost(editedPost);
+      setHasChanges(false);
+      toast.success("Post saved!");
     } catch (error) {
       console.error("Error saving post:", error);
       toast.error("Failed to save post");
-      setSaveStatus("idle");
+    } finally {
+      setIsSaving(false);
     }
-  }, []);
-
-  // Handle content change with debounce
-  const handleContentChange = useCallback(
-    (content: string) => {
-      if (!editedPost) return;
-
-      const updatedPost = { ...editedPost, content };
-      setEditedPost(updatedPost);
-
-      // Clear existing timeout
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      // Set new debounced save (1.5 second delay)
-      saveTimeoutRef.current = setTimeout(() => {
-        debouncedSave(updatedPost);
-      }, 1500);
-    },
-    [editedPost, debouncedSave]
-  );
-
-  // Handle date blur save (immediate)
-  const handleFieldSave = async () => {
-    if (!editedPost || !post) return;
-
-    // Only save if scheduledDate changed
-    const dateChanged =
-      post.scheduledDate?.getTime() !== editedPost.scheduledDate?.getTime();
-
-    if (!dateChanged) return;
-
-    // Clear any pending content save
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    await debouncedSave(editedPost);
   };
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
-    };
-  }, []);
 
   const handleStatusChange = async (newStatus: PostStatus) => {
     if (!editedPost) return;
+
+    // Don't allow changing status of posted posts
+    if (isPosted) {
+      toast.error("Cannot change status of a published post");
+      return;
+    }
 
     try {
       await reorderPosts([
         { id: editedPost.id, order: editedPost.order, status: newStatus },
       ]);
       setEditedPost({ ...editedPost, status: newStatus });
+      setPost({ ...editedPost, status: newStatus });
       toast.success("Status updated!");
     } catch (error) {
       console.error("Error updating status:", error);
@@ -241,6 +184,31 @@ export default function PostEditPage() {
 
   return (
     <div className="mt-6 w-full space-y-2">
+      {/* Header with Save button */}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-semibold">Edit Post</h1>
+        {!isPosted && (
+          <Button
+            onClick={handleSave}
+            disabled={isSaving || !hasChanges}
+            size="sm"
+            className="gap-2"
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Save
+          </Button>
+        )}
+        {isPosted && (
+          <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+            Published
+          </Badge>
+        )}
+      </div>
+
       {/* Properties */}
       <div className="space-y-3 py-4">
         {/* Status */}
@@ -249,50 +217,67 @@ export default function PostEditPage() {
             <CircleDot className="h-4 w-4" />
             Status
           </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-base ${
-                  statusConfig[editedPost.status].bgColor
-                } ${
-                  statusConfig[editedPost.status].textColor
-                } hover:opacity-80 transition-opacity cursor-pointer`}
-              >
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    statusConfig[editedPost.status].dotColor
-                  }`}
-                />
-                {statusConfig[editedPost.status].label}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52">
-              {statusGroups.map((group, groupIndex) => (
-                <div key={group.label}>
-                  {groupIndex > 0 && <DropdownMenuSeparator />}
-                  <DropdownMenuLabel className="text-sm text-muted-foreground font-normal">
-                    {group.label}
-                  </DropdownMenuLabel>
-                  {group.statuses.map((status) => (
-                    <DropdownMenuItem
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      className="cursor-pointer"
-                    >
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full ${statusConfig[status].dotColor}`}
-                      />
-                      <span
-                        className={`px-2.5 py-1 rounded text-base ${statusConfig[status].bgColor} ${statusConfig[status].textColor}`}
-                      >
-                        {statusConfig[status].label}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </div>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {isPosted ? (
+            <div
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-base ${
+                statusConfig[editedPost.status].bgColor
+              } ${statusConfig[editedPost.status].textColor} cursor-not-allowed`}
+            >
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  statusConfig[editedPost.status].dotColor
+                }`}
+              />
+              {statusConfig[editedPost.status].label}
+            </div>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-base ${
+                    statusConfig[editedPost.status].bgColor
+                  } ${
+                    statusConfig[editedPost.status].textColor
+                  } hover:opacity-80 transition-opacity cursor-pointer`}
+                >
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      statusConfig[editedPost.status].dotColor
+                    }`}
+                  />
+                  {statusConfig[editedPost.status].label}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                {statusGroups.map((group, groupIndex) => (
+                  <div key={group.label}>
+                    {groupIndex > 0 && <DropdownMenuSeparator />}
+                    <DropdownMenuLabel className="text-sm text-muted-foreground font-normal">
+                      {group.label}
+                    </DropdownMenuLabel>
+                    {group.statuses
+                      .filter((s) => s !== "posted")
+                      .map((status) => (
+                        <DropdownMenuItem
+                          key={status}
+                          onClick={() => handleStatusChange(status)}
+                          className="cursor-pointer"
+                        >
+                          <span
+                            className={`w-2.5 h-2.5 rounded-full ${statusConfig[status].dotColor}`}
+                          />
+                          <span
+                            className={`px-2.5 py-1 rounded text-base ${statusConfig[status].bgColor} ${statusConfig[status].textColor}`}
+                          >
+                            {statusConfig[status].label}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                  </div>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Platforms */}
@@ -302,82 +287,108 @@ export default function PostEditPage() {
             Platforms
           </span>
           <div className="flex-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start min-h-[40px] h-auto"
-                >
-                  {editedPost.platforms.length === 0 ? (
-                    <span className="text-muted-foreground">
-                      Select platforms...
-                    </span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {editedPost.platforms.map((platformId) => {
-                        const platform = PLATFORMS.find(
-                          (p) => p.id === platformId
-                        );
-                        return (
-                          <Badge
-                            key={platformId}
-                            variant="secondary"
-                            className="flex items-center gap-1"
-                          >
-                            {platform?.logo && (
-                              <Image
-                                src={platform.logo}
-                                alt={platform.name}
-                                width={12}
-                                height={12}
-                              />
-                            )}
-                            {platform?.name}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-full">
-                {PLATFORMS.map((platform) => (
-                  <DropdownMenuCheckboxItem
-                    key={platform.id}
-                    checked={editedPost.platforms.includes(
-                      platform.id as PostPlatform
-                    )}
-                    onCheckedChange={(checked) => {
-                      let newPlatforms: PostPlatform[];
-                      if (checked) {
-                        newPlatforms = [
-                          ...editedPost.platforms,
-                          platform.id as PostPlatform,
-                        ];
-                      } else {
-                        newPlatforms = editedPost.platforms.filter(
-                          (p) => p !== platform.id
-                        );
-                      }
-                      setEditedPost({ ...editedPost, platforms: newPlatforms });
-                    }}
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <div className="flex items-center gap-2">
-                      {platform.logo && (
+            {isPosted ? (
+              <div className="flex flex-wrap gap-1">
+                {editedPost.platforms.map((platformId) => {
+                  const platform = PLATFORMS.find((p) => p.id === platformId);
+                  return (
+                    <Badge
+                      key={platformId}
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
+                      {platform?.logo && (
                         <Image
                           src={platform.logo}
                           alt={platform.name}
-                          width={16}
-                          height={16}
+                          width={12}
+                          height={12}
                         />
                       )}
-                      {platform.name}
-                    </div>
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      {platform?.name}
+                    </Badge>
+                  );
+                })}
+              </div>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start min-h-[40px] h-auto"
+                  >
+                    {editedPost.platforms.length === 0 ? (
+                      <span className="text-muted-foreground">
+                        Select platforms...
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {editedPost.platforms.map((platformId) => {
+                          const platform = PLATFORMS.find(
+                            (p) => p.id === platformId
+                          );
+                          return (
+                            <Badge
+                              key={platformId}
+                              variant="secondary"
+                              className="flex items-center gap-1"
+                            >
+                              {platform?.logo && (
+                                <Image
+                                  src={platform.logo}
+                                  alt={platform.name}
+                                  width={12}
+                                  height={12}
+                                />
+                              )}
+                              {platform?.name}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-full">
+                  {PLATFORMS.map((platform) => (
+                    <DropdownMenuCheckboxItem
+                      key={platform.id}
+                      checked={editedPost.platforms.includes(
+                        platform.id as PostPlatform
+                      )}
+                      onCheckedChange={(checked) => {
+                        let newPlatforms: PostPlatform[];
+                        if (checked) {
+                          newPlatforms = [
+                            ...editedPost.platforms,
+                            platform.id as PostPlatform,
+                          ];
+                        } else {
+                          newPlatforms = editedPost.platforms.filter(
+                            (p) => p !== platform.id
+                          );
+                        }
+                        setEditedPost({ ...editedPost, platforms: newPlatforms });
+                        setHasChanges(true);
+                      }}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <div className="flex items-center gap-2">
+                        {platform.logo && (
+                          <Image
+                            src={platform.logo}
+                            alt={platform.name}
+                            width={16}
+                            height={16}
+                          />
+                        )}
+                        {platform.name}
+                      </div>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
@@ -387,24 +398,32 @@ export default function PostEditPage() {
             <Calendar className="h-4 w-4" />
             Scheduled
           </span>
-          <Input
-            type="datetime-local"
-            value={
-              editedPost.scheduledDate
-                ? new Date(editedPost.scheduledDate).toISOString().slice(0, 16)
-                : ""
-            }
-            onChange={(e) => {
-              setEditedPost({
-                ...editedPost,
-                scheduledDate: e.target.value
-                  ? new Date(e.target.value)
-                  : undefined,
-              });
-            }}
-            onBlur={handleFieldSave}
-            className="w-auto border-none bg-transparent hover:bg-muted px-2 h-9"
-          />
+          {isPosted ? (
+            <span className="text-muted-foreground">
+              {editedPost.scheduledDate
+                ? new Date(editedPost.scheduledDate).toLocaleString()
+                : "Not scheduled"}
+            </span>
+          ) : (
+            <Input
+              type="datetime-local"
+              value={
+                editedPost.scheduledDate
+                  ? new Date(editedPost.scheduledDate).toISOString().slice(0, 16)
+                  : ""
+              }
+              onChange={(e) => {
+                setEditedPost({
+                  ...editedPost,
+                  scheduledDate: e.target.value
+                    ? new Date(e.target.value)
+                    : undefined,
+                });
+                setHasChanges(true);
+              }}
+              className="w-auto border-none bg-transparent hover:bg-muted px-2 h-9"
+            />
+          )}
         </div>
 
         {/* Created Date */}
@@ -429,8 +448,8 @@ export default function PostEditPage() {
       <PostEditor
         content={editedPost.content}
         onChange={handleContentChange}
-        saveStatus={saveStatus}
         placeholder="What's happening?"
+        readOnly={isPosted}
       />
     </div>
   );

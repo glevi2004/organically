@@ -60,15 +60,18 @@ interface MediaUploadProps {
   onChange: (media: LocalMedia[]) => void;
   maxFiles?: number;
   className?: string;
+  disabled?: boolean;
 }
 
 // Sortable media item
 function SortableMediaItem({
   item,
   onRemove,
+  disabled = false,
 }: {
   item: LocalMedia;
   onRemove: () => void;
+  disabled?: boolean;
 }) {
   const {
     attributes,
@@ -127,22 +130,26 @@ function SortableMediaItem({
         />
       )}
 
-      {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="absolute top-1 left-1 p-1 rounded bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-      >
-        <GripVertical className="w-3 h-3 text-white" />
-      </button>
+      {/* Drag handle - hidden when disabled */}
+      {!disabled && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="absolute top-1 left-1 p-1 rounded bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical className="w-3 h-3 text-white" />
+        </button>
+      )}
 
-      {/* Remove button */}
-      <button
-        onClick={onRemove}
-        className="absolute top-1 right-1 p-1 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-      >
-        <X className="w-3 h-3 text-white" />
-      </button>
+      {/* Remove button - hidden when disabled */}
+      {!disabled && (
+        <button
+          onClick={onRemove}
+          className="absolute top-1 right-1 p-1 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+        >
+          <X className="w-3 h-3 text-white" />
+        </button>
+      )}
 
       {/* Upload status indicator */}
       <div className="absolute bottom-1 left-1">
@@ -211,6 +218,7 @@ export function MediaUpload({
   onChange,
   maxFiles = MAX_FILES,
   className,
+  disabled = false,
 }: MediaUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -440,12 +448,13 @@ export function MediaUpload({
                 key={item.id}
                 item={item}
                 onRemove={() => handleRemove(item.id)}
+                disabled={disabled}
               />
             ))}
           </SortableContext>
 
-          {/* Add button */}
-          {media.length < maxFiles && (
+          {/* Add button - hidden when disabled */}
+          {!disabled && media.length < maxFiles && (
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isProcessing}
@@ -483,13 +492,21 @@ export function MediaUpload({
 
       {/* Info text */}
       <p className="text-[10px] text-muted-foreground">
-        {media.length}/{maxFiles} • Drag to reorder • Images up to 10MB, videos
-        up to 250MB
-        {pendingCount > 0 && (
-          <span className="text-yellow-600 dark:text-yellow-400">
-            {" "}
-            • {pendingCount} pending upload
+        {disabled ? (
+          <span>
+            {media.length} media file{media.length !== 1 ? "s" : ""}
           </span>
+        ) : (
+          <>
+            {media.length}/{maxFiles} • Drag to reorder • Images up to 10MB,
+            videos up to 250MB
+            {pendingCount > 0 && (
+              <span className="text-yellow-600 dark:text-yellow-400">
+                {" "}
+                • {pendingCount} pending upload
+              </span>
+            )}
+          </>
         )}
       </p>
     </div>
