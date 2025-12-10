@@ -197,11 +197,31 @@ export async function GET(request: NextRequest) {
     const expiresIn = longLivedData.expires_in || 5184000; // 60 days in seconds
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
+    // Step 4: Subscribe to webhook notifications for this Instagram account
+    // This is REQUIRED per Meta documentation - without this, the account won't receive webhooks
+    const igUserId = profile.user_id || tokenData.user_id;
+    const subscribeResponse = await fetch(
+      `https://graph.instagram.com/${igUserId}/subscribed_apps?` +
+        `subscribed_fields=comments,messages&` +
+        `access_token=${longLivedData.access_token}`,
+      { method: "POST" }
+    );
+
+    if (!subscribeResponse.ok) {
+      const errorData = await subscribeResponse.text();
+      console.error("Webhook subscription failed:", errorData);
+      // Don't throw - we can still save the channel, webhooks just won't work
+      // The user can try reconnecting later
+      console.warn("⚠️ Continuing without webhook subscription");
+    } else {
+      console.log("✅ Webhook subscription enabled for comments and messages");
+    }
+
     // Create channel object
     const channel = {
       id: `ch_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       provider: "instagram",
-      providerAccountId: profile.user_id || tokenData.user_id,
+      providerAccountId: igUserId,
       accountName: profile.username,
       accountType: profile.account_type, // 'BUSINESS' or 'MEDIA_CREATOR'
       accessToken: encryptedToken,
