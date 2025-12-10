@@ -321,6 +321,7 @@ export const TriggerNode = memo(({ id, data, selected }: TriggerNodeProps) => {
                                 src={post.thumbnail_url}
                                 alt="Post thumbnail"
                                 fill
+                                sizes="40px"
                                 className="object-cover"
                               />
                             </div>
