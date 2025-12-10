@@ -482,3 +482,156 @@ export async function checkPublishingLimit(
 
   return response.json();
 }
+
+// ============================================
+// Comment & Messaging API
+// Docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login
+// ============================================
+
+export interface InstagramComment {
+  id: string;
+  text: string;
+  timestamp: string;
+  username?: string;
+  from?: {
+    id: string;
+    username: string;
+  };
+  media?: {
+    id: string;
+  };
+}
+
+export interface CommentReplyResponse {
+  id: string;
+}
+
+export interface MessageResponse {
+  recipient_id: string;
+  message_id: string;
+}
+
+/**
+ * Get details of a specific comment
+ */
+export async function getComment(
+  accessToken: string,
+  commentId: string
+): Promise<InstagramComment> {
+  const response = await fetch(
+    `${INSTAGRAM_GRAPH_URL}/${commentId}?fields=id,text,timestamp,username,from{id,username},media{id}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram get comment error:", error);
+    throw new Error(error.error?.message || "Failed to get comment");
+  }
+
+  return response.json();
+}
+
+/**
+ * Reply to a comment (public - visible on the post)
+ * Uses POST /{comment-id}/replies
+ */
+export async function replyToComment(
+  accessToken: string,
+  commentId: string,
+  message: string
+): Promise<CommentReplyResponse> {
+  const response = await fetch(`${INSTAGRAM_GRAPH_URL}/${commentId}/replies`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      message,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram reply to comment error:", error);
+    throw new Error(error.error?.message || "Failed to reply to comment");
+  }
+
+  return response.json();
+}
+
+/**
+ * Send a private reply to a commenter (DM with comment context)
+ * This sends a DM to the user who left a comment
+ * Uses POST /{ig-user-id}/messages with recipient.comment_id
+ */
+export async function sendPrivateReply(
+  accessToken: string,
+  igUserId: string,
+  commentId: string,
+  message: string
+): Promise<MessageResponse> {
+  const response = await fetch(`${INSTAGRAM_GRAPH_URL}/${igUserId}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      recipient: {
+        comment_id: commentId,
+      },
+      message: {
+        text: message,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram send private reply error:", error);
+    throw new Error(error.error?.message || "Failed to send private reply");
+  }
+
+  return response.json();
+}
+
+/**
+ * Send a direct message to a user
+ * Uses POST /{ig-user-id}/messages with recipient.id
+ */
+export async function sendDirectMessage(
+  accessToken: string,
+  igUserId: string,
+  recipientId: string,
+  message: string
+): Promise<MessageResponse> {
+  const response = await fetch(`${INSTAGRAM_GRAPH_URL}/${igUserId}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      recipient: {
+        id: recipientId,
+      },
+      message: {
+        text: message,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error("Instagram send DM error:", error);
+    throw new Error(error.error?.message || "Failed to send direct message");
+  }
+
+  return response.json();
+}
