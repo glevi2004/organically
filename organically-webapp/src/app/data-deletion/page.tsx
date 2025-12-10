@@ -6,20 +6,19 @@ import Link from "next/link";
 import { CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface DeletionStatus {
-  confirmationCode: string;
-  status: "pending" | "in_progress" | "completed" | "failed";
-  requestedAt: string;
-  completedAt?: string;
-  channelsRemoved?: number;
-}
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { DeletionStatus } from "@/types/onboarding";
 
 export default function DataDeletionPage() {
   const searchParams = useSearchParams();
   const codeFromUrl = searchParams.get("code");
-  
+
   const [confirmationCode, setConfirmationCode] = useState(codeFromUrl || "");
   const [status, setStatus] = useState<DeletionStatus | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,7 +31,7 @@ export default function DataDeletionPage() {
       checkStatus();
       setChecked(true);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeFromUrl]);
 
   const checkStatus = async () => {
@@ -45,13 +44,19 @@ export default function DataDeletionPage() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/user-data-deletion/status?code=${encodeURIComponent(confirmationCode)}`);
-      
+      const response = await fetch(
+        `/api/user-data-deletion/status?code=${encodeURIComponent(
+          confirmationCode
+        )}`
+      );
+
       if (response.ok) {
         const data = await response.json();
         setStatus(data);
       } else if (response.status === 404) {
-        setError("Deletion request not found. Please check your confirmation code.");
+        setError(
+          "Deletion request not found. Please check your confirmation code."
+        );
         setStatus(null);
       } else {
         setError("Failed to check status. Please try again.");
@@ -97,8 +102,8 @@ export default function DataDeletionPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-6 py-16">
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="text-sm text-muted-foreground hover:text-foreground mb-8 inline-block"
         >
           ← Back to Home
@@ -106,7 +111,8 @@ export default function DataDeletionPage() {
 
         <h1 className="text-4xl font-bold mb-4">Data Deletion</h1>
         <p className="text-muted-foreground mb-8">
-          Check the status of your data deletion request or learn how to request deletion of your data.
+          Check the status of your data deletion request or learn how to request
+          deletion of your data.
         </p>
 
         {/* Status Check Card */}
@@ -114,7 +120,8 @@ export default function DataDeletionPage() {
           <CardHeader>
             <CardTitle>Check Deletion Status</CardTitle>
             <CardDescription>
-              Enter your confirmation code to check the status of your data deletion request.
+              Enter your confirmation code to check the status of your data
+              deletion request.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -139,7 +146,9 @@ export default function DataDeletionPage() {
 
             {error && (
               <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </p>
               </div>
             )}
 
@@ -149,14 +158,18 @@ export default function DataDeletionPage() {
                   {getStatusIcon(status.status)}
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg mb-1">
-                      {status.status === "completed" ? "Deletion Complete" : "Deletion Status"}
+                      {status.status === "completed"
+                        ? "Deletion Complete"
+                        : "Deletion Status"}
                     </h3>
                     <p className="text-muted-foreground mb-4">
                       {getStatusText(status.status)}
                     </p>
                     <dl className="text-sm space-y-2">
                       <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Confirmation Code:</dt>
+                        <dt className="text-muted-foreground">
+                          Confirmation Code:
+                        </dt>
                         <dd className="font-mono">{status.confirmationCode}</dd>
                       </div>
                       <div className="flex justify-between">
@@ -166,12 +179,16 @@ export default function DataDeletionPage() {
                       {status.completedAt && (
                         <div className="flex justify-between">
                           <dt className="text-muted-foreground">Completed:</dt>
-                          <dd>{new Date(status.completedAt).toLocaleString()}</dd>
+                          <dd>
+                            {new Date(status.completedAt).toLocaleString()}
+                          </dd>
                         </div>
                       )}
                       {status.channelsRemoved !== undefined && (
                         <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Instagram Accounts Removed:</dt>
+                          <dt className="text-muted-foreground">
+                            Instagram Accounts Removed:
+                          </dt>
                           <dd>{status.channelsRemoved}</dd>
                         </div>
                       )}
@@ -188,31 +205,40 @@ export default function DataDeletionPage() {
           <CardHeader>
             <CardTitle>How to Request Data Deletion</CardTitle>
             <CardDescription>
-              There are several ways to request deletion of your data from Organically.
+              There are several ways to request deletion of your data from
+              Organically.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="font-semibold mb-2">Option 1: Through Instagram Settings</h3>
+              <h3 className="font-semibold mb-2">
+                Option 1: Through Instagram Settings
+              </h3>
               <p className="text-muted-foreground text-sm">
-                Go to your Instagram app → Settings → Security → Apps and Websites → 
-                Remove Organically. This will automatically trigger a data deletion request.
+                Go to your Instagram app → Settings → Security → Apps and
+                Websites → Remove Organically. This will automatically trigger a
+                data deletion request.
               </p>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-2">Option 2: Through Facebook Settings</h3>
+              <h3 className="font-semibold mb-2">
+                Option 2: Through Facebook Settings
+              </h3>
               <p className="text-muted-foreground text-sm">
-                Go to Facebook → Settings → Apps and Websites → Find Organically → 
-                Remove App. Select &quot;Delete all data&quot; when prompted.
+                Go to Facebook → Settings → Apps and Websites → Find Organically
+                → Remove App. Select &quot;Delete all data&quot; when prompted.
               </p>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-2">Option 3: From Within Organically</h3>
+              <h3 className="font-semibold mb-2">
+                Option 3: From Within Organically
+              </h3>
               <p className="text-muted-foreground text-sm">
-                Log in to your Organically account → Settings → Connected Accounts → 
-                Disconnect your Instagram account, then delete your Organically account.
+                Log in to your Organically account → Settings → Connected
+                Accounts → Disconnect your Instagram account, then delete your
+                Organically account.
               </p>
             </div>
 
@@ -220,11 +246,14 @@ export default function DataDeletionPage() {
               <h3 className="font-semibold mb-2">Option 4: Contact Support</h3>
               <p className="text-muted-foreground text-sm">
                 Email us at{" "}
-                <a href="mailto:privacy@organically.app" className="text-primary hover:underline">
+                <a
+                  href="mailto:privacy@organically.app"
+                  className="text-primary hover:underline"
+                >
                   privacy@organically.app
                 </a>{" "}
-                with your request. Please include your email address and Instagram username. 
-                We will process your request within 30 days.
+                with your request. Please include your email address and
+                Instagram username. We will process your request within 30 days.
               </p>
             </div>
           </CardContent>
@@ -238,15 +267,16 @@ export default function DataDeletionPage() {
             <li>• Scheduled posts and automation workflows</li>
             <li>• Message and comment history processed by automations</li>
             <li>• Analytics data associated with your account</li>
-            <li>• Your Organically user profile (if account deletion is requested)</li>
+            <li>
+              • Your Organically user profile (if account deletion is requested)
+            </li>
           </ul>
           <p className="text-sm text-muted-foreground mt-4">
-            Note: Data already published to Instagram remains on Instagram and is subject to 
-            Instagram&apos;s own data policies.
+            Note: Data already published to Instagram remains on Instagram and
+            is subject to Instagram&apos;s own data policies.
           </p>
         </div>
       </div>
     </div>
   );
 }
-

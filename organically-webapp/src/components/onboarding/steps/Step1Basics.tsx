@@ -4,19 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { cn } from "@/lib/utils";
-
-interface Step1Data {
-  name: string;
-  imageFile?: File | null;
-  currentImageUrl?: string;
-  description?: string;
-  brandVoice?: string;
-  valuesMission?: string;
-}
+import { StepBasicsData } from "@/types/onboarding";
 
 interface Step1BasicsProps {
-  data: Step1Data;
-  onDataChange: (data: Step1Data) => void;
+  data: StepBasicsData;
+  onDataChange: (data: StepBasicsData) => void;
 }
 
 export function Step1Basics({ data, onDataChange }: Step1BasicsProps) {
@@ -25,8 +17,8 @@ export function Step1Basics({ data, onDataChange }: Step1BasicsProps) {
       <div>
         <h2 className="text-2xl font-bold mb-2">Create Your Organization</h2>
         <p className="text-muted-foreground">
-          Let's start with the basics. Your organization is where you'll manage your
-          content plans, ideas, and posts.
+          Let's start with the basics. Your organization is where you'll manage
+          your content plans, ideas, and posts.
         </p>
       </div>
 

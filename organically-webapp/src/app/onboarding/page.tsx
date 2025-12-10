@@ -16,6 +16,7 @@ import { OnboardingLayout } from "@/components/onboarding/OnboardingLayout";
 import { StepTerms } from "@/components/onboarding/steps/StepTerms";
 import { Step1Basics } from "@/components/onboarding/steps/Step1Basics";
 import { Organization } from "@/types/organization";
+import { StepTermsData, StepBasicsData } from "@/types/onboarding";
 
 const TOTAL_STEPS = 2;
 
@@ -30,24 +31,14 @@ function OnboardingContent() {
   const [loading, setLoading] = useState(false);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
 
-  // Step 0: Terms acceptance data
-  const [termsData, setTermsData] = useState<{
-    termsAccepted: boolean;
-    privacyAccepted: boolean;
-  }>({
+  // Step 1: Terms acceptance data
+  const [termsData, setTermsData] = useState<StepTermsData>({
     termsAccepted: false,
     privacyAccepted: false,
   });
 
-  // Step 1 data (Basics - now step 2)
-  const [step1Data, setStep1Data] = useState<{
-    name: string;
-    imageFile?: File | null;
-    currentImageUrl?: string;
-    description?: string;
-    brandVoice?: string;
-    valuesMission?: string;
-  }>({
+  // Step 2: Organization basics data
+  const [step1Data, setStep1Data] = useState<StepBasicsData>({
     name: "",
     imageFile: null,
     description: "",
