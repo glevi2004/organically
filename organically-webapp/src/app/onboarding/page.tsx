@@ -42,8 +42,6 @@ function OnboardingContent() {
     name: "",
     imageFile: null,
     description: "",
-    brandVoice: "",
-    valuesMission: "",
   });
 
   // Check for existing organization to resume
@@ -83,8 +81,6 @@ function OnboardingContent() {
           imageFile: null,
           currentImageUrl: organizationData.imageUrl,
           description: organizationData.description || "",
-          brandVoice: organizationData.brandVoice || "",
-          valuesMission: organizationData.valuesMission || "",
         });
 
         // If user already has an organization, they've already accepted terms
@@ -171,8 +167,6 @@ function OnboardingContent() {
       if (currentOrganizationId) {
         const updateData: Partial<Organization> = {
           description: step1Data.description || undefined,
-          brandVoice: step1Data.brandVoice || undefined,
-          valuesMission: step1Data.valuesMission || undefined,
         };
 
         await saveOnboardingProgress(currentOrganizationId, 2, updateData);

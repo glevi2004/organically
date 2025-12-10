@@ -35,8 +35,6 @@ export interface Organization {
 
   // Content Generation Fields
   description?: string;
-  brandVoice?: string;
-  valuesMission?: string;
 
   // Connected Instagram channels
   channels?: Channel[];

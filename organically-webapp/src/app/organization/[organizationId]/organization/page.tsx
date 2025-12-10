@@ -29,8 +29,6 @@ export default function OrganizationPage() {
     undefined
   );
   const [description, setDescription] = useState("");
-  const [brandVoice, setBrandVoice] = useState("");
-  const [valuesMission, setValuesMission] = useState("");
 
   // Load organization data
   useEffect(() => {
@@ -38,8 +36,6 @@ export default function OrganizationPage() {
       setName(activeOrganization.name || "");
       setCurrentImageUrl(activeOrganization.imageUrl);
       setDescription(activeOrganization.description || "");
-      setBrandVoice(activeOrganization.brandVoice || "");
-      setValuesMission(activeOrganization.valuesMission || "");
     }
   }, [activeOrganization]);
 
@@ -50,12 +46,10 @@ export default function OrganizationPage() {
     const changed =
       name !== (activeOrganization.name || "") ||
       imageFile !== null ||
-      description !== (activeOrganization.description || "") ||
-      brandVoice !== (activeOrganization.brandVoice || "") ||
-      valuesMission !== (activeOrganization.valuesMission || "");
+      description !== (activeOrganization.description || "");
 
     setHasChanges(changed);
-  }, [name, imageFile, description, brandVoice, valuesMission, activeOrganization]);
+  }, [name, imageFile, description, activeOrganization]);
 
   const handleSave = async () => {
     if (!activeOrganization || !user || !name.trim()) {
@@ -81,8 +75,6 @@ export default function OrganizationPage() {
         name: name.trim(),
         imageUrl: newImageUrl,
         description: description.trim() || undefined,
-        brandVoice: brandVoice.trim() || undefined,
-        valuesMission: valuesMission.trim() || undefined,
       });
 
       await refreshOrganizations();
@@ -105,8 +97,6 @@ export default function OrganizationPage() {
       setName(activeOrganization.name || "");
       setCurrentImageUrl(activeOrganization.imageUrl);
       setDescription(activeOrganization.description || "");
-      setBrandVoice(activeOrganization.brandVoice || "");
-      setValuesMission(activeOrganization.valuesMission || "");
     }
     setImageFile(null);
     setIsEditingImage(false);
@@ -132,7 +122,10 @@ export default function OrganizationPage() {
               {/* Organization Image, Name & Description */}
               <div className="flex items-start gap-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={currentImageUrl} alt={activeOrganization.name} />
+                  <AvatarImage
+                    src={currentImageUrl}
+                    alt={activeOrganization.name}
+                  />
                   <AvatarFallback className="text-2xl">
                     {activeOrganization.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
@@ -277,64 +270,6 @@ export default function OrganizationPage() {
                   {description.length}/500 characters
                 </p>
                 {description.length > 0 && description.length < 200 && (
-                  <p className="text-xs text-amber-600">
-                    Minimum 200 characters recommended
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Brand Voice */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="brandVoice">Brand Voice / Tone</Label>
-                <p className="text-sm text-muted-foreground">
-                  Describe your brand's voice and tone in 200-500 characters
-                </p>
-              </div>
-              <textarea
-                id="brandVoice"
-                rows={4}
-                placeholder="How do you want to communicate with your audience?"
-                value={brandVoice}
-                onChange={(e) => setBrandVoice(e.target.value)}
-                maxLength={500}
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {brandVoice.length}/500 characters
-                </p>
-                {brandVoice.length > 0 && brandVoice.length < 200 && (
-                  <p className="text-xs text-amber-600">
-                    Minimum 200 characters recommended
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Values / Mission */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="valuesMission">Values / Mission</Label>
-                <p className="text-sm text-muted-foreground">
-                  Describe your brand's values and mission in 200-500 characters
-                </p>
-              </div>
-              <textarea
-                id="valuesMission"
-                rows={4}
-                placeholder="What drives you and what do you stand for?"
-                value={valuesMission}
-                onChange={(e) => setValuesMission(e.target.value)}
-                maxLength={500}
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {valuesMission.length}/500 characters
-                </p>
-                {valuesMission.length > 0 && valuesMission.length < 200 && (
                   <p className="text-xs text-amber-600">
                     Minimum 200 characters recommended
                   </p>

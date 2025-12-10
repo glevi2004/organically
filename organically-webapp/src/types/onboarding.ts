@@ -18,8 +18,6 @@ export interface StepBasicsData {
   imageFile?: File | null;
   currentImageUrl?: string;
   description?: string;
-  brandVoice?: string;
-  valuesMission?: string;
 }
 
 // ============================================================================
