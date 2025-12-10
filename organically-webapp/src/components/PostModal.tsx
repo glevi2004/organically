@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PostEditor } from "@/components/PostEditor";
 import {
   DropdownMenu,
@@ -15,17 +25,8 @@ import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Loader2, Trash2, Send, Instagram } from "lucide-react";
 import { toast } from "sonner";
-import {
-  createPost,
-  updatePost,
-  reorderPosts,
-  deletePost,
-} from "@/services/postService";
-import {
-  uploadPostMedia,
-  deletePostMedia,
-  isLocalBlobUrl,
-} from "@/services/postMediaService";
+import { createPost, updatePost, deletePost } from "@/services/postService";
+import { uploadPostMedia, isLocalBlobUrl } from "@/services/postMediaService";
 import {
   Post,
   PostStatus,
@@ -120,12 +121,22 @@ export function PostModal({
     Omit<Post, "id" | "createdAt" | "updatedAt"> & { id?: string }
   >(getDefaultPost());
 
+  // Store original post state for comparison
+  const originalPostRef = useRef<string>("");
+  const originalMediaRef = useRef<string>("");
+
   // Check if post is already published (read-only mode)
   const isPosted = editedPost?.status === "posted";
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+
+  // Unsaved changes dialog state
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [pendingCloseAction, setPendingCloseAction] = useState<
+    "close" | "cancel" | null
+  >(null);
 
   // Check if Instagram is connected
   const hasInstagramConnected = activeOrganization?.channels?.some(
@@ -144,17 +155,55 @@ export function PostModal({
     activeOrganization?.channels?.[0]?.profileImageUrl ||
     activeOrganization?.imageUrl;
 
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = useCallback(() => {
+    if (!isEditMode) return false; // New posts don't have "unsaved changes"
+    if (isPosted) return false; // Posted posts can't have unsaved changes
+
+    const currentSnapshot = JSON.stringify({
+      content: editedPost.content,
+      status: editedPost.status,
+      platforms: editedPost.platforms,
+      scheduledDate:
+        editedPost.scheduledDate instanceof Date
+          ? editedPost.scheduledDate.getTime()
+          : editedPost.scheduledDate,
+    });
+
+    const currentMediaSnapshot = JSON.stringify(
+      localMedia.map((m) => ({ id: m.id, url: m.url, order: m.order }))
+    );
+
+    return (
+      currentSnapshot !== originalPostRef.current ||
+      currentMediaSnapshot !== originalMediaRef.current
+    );
+  }, [editedPost, localMedia, isEditMode, isPosted]);
+
   // Initialize edited post when post changes or modal opens
   useEffect(() => {
     if (open) {
       if (post) {
         setEditedPost(post);
         // Mark existing media as already uploaded
-        setLocalMedia(
-          (post.media || []).map((m) => ({
-            ...m,
-            isUploaded: true,
-          }))
+        const mediaList = (post.media || []).map((m) => ({
+          ...m,
+          isUploaded: true,
+        }));
+        setLocalMedia(mediaList);
+
+        // Store original state for comparison
+        originalPostRef.current = JSON.stringify({
+          content: post.content,
+          status: post.status,
+          platforms: post.platforms,
+          scheduledDate:
+            post.scheduledDate instanceof Date
+              ? post.scheduledDate.getTime()
+              : post.scheduledDate,
+        });
+        originalMediaRef.current = JSON.stringify(
+          mediaList.map((m) => ({ id: m.id, url: m.url, order: m.order }))
         );
       } else {
         // Reset to default for new post
@@ -164,8 +213,12 @@ export function PostModal({
           userId,
         });
         setLocalMedia([]);
+        originalPostRef.current = "";
+        originalMediaRef.current = "";
       }
       setUploadProgress(null);
+      setShowUnsavedDialog(false);
+      setPendingCloseAction(null);
     }
   }, [post, open, organizationId, userId]);
 
@@ -192,7 +245,8 @@ export function PostModal({
     [editedPost]
   );
 
-  const handleStatusChange = async (newStatus: PostStatus) => {
+  // Handle status change - only update local state, no DB call
+  const handleStatusChange = (newStatus: PostStatus) => {
     if (!editedPost) return;
 
     // Prevent changing status of a posted post
@@ -207,59 +261,8 @@ export function PostModal({
       return;
     }
 
-    if (isEditMode && editedPost.id) {
-      try {
-        await reorderPosts([
-          { id: editedPost.id, order: editedPost.order, status: newStatus },
-        ]);
-        const updatedPost = { ...editedPost, status: newStatus };
-        setEditedPost(updatedPost);
-        onPostUpdated?.(updatedPost as Post);
-
-        // If changing to "ready", trigger scheduling if conditions are met
-        if (newStatus === "ready") {
-          const uploadedMedia = localMedia.filter(
-            (m) => m.isUploaded && !isLocalBlobUrl(m.url)
-          );
-          const scheduledTime = editedPost.scheduledDate
-            ? new Date(editedPost.scheduledDate)
-            : null;
-          const minScheduleTime = Date.now() + 5 * 60 * 1000;
-
-          if (
-            scheduledTime &&
-            scheduledTime.getTime() >= minScheduleTime &&
-            hasInstagramConnected &&
-            uploadedMedia.length > 0
-          ) {
-            // Schedule the post
-            const response = await fetch("/api/instagram/schedule", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                postId: editedPost.id,
-                organizationId,
-                scheduledDate: scheduledTime.toISOString(),
-              }),
-            });
-
-            if (response.ok) {
-              toast.success(
-                `Status changed to Ready and scheduled for ${scheduledTime.toLocaleDateString()} at ${scheduledTime.toLocaleTimeString()}`
-              );
-              return;
-            }
-          }
-        }
-
-        toast.success("Status updated!");
-      } catch (error) {
-        console.error("Error updating status:", error);
-        toast.error("Failed to update status");
-      }
-    } else {
-      setEditedPost({ ...editedPost, status: newStatus });
-    }
+    // Just update local state - will be saved when user clicks Save
+    setEditedPost({ ...editedPost, status: newStatus });
   };
 
   const handleDelete = async () => {
@@ -509,28 +512,57 @@ export function PostModal({
     return scheduledDate.getTime() < minDate.getTime();
   }, [editedPost.scheduledDate, editedPost.status]);
 
-  // Handle modal close with validation
-  const handleModalClose = useCallback(
-    (open: boolean) => {
-      if (!open && isScheduleDateInPast()) {
+  // Attempt to close the modal - check for unsaved changes first
+  const attemptClose = useCallback(
+    (action: "close" | "cancel") => {
+      if (isScheduleDateInPast()) {
         toast.error(
           "Please select a future date and time (at least 5 minutes from now) before closing"
         );
         return;
       }
-      onOpenChange(open);
+
+      if (hasUnsavedChanges()) {
+        setPendingCloseAction(action);
+        setShowUnsavedDialog(true);
+      } else {
+        onOpenChange(false);
+      }
     },
-    [isScheduleDateInPast, onOpenChange]
+    [isScheduleDateInPast, hasUnsavedChanges, onOpenChange]
+  );
+
+  // Handle modal close with validation
+  const handleModalClose = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        attemptClose("close");
+      } else {
+        onOpenChange(open);
+      }
+    },
+    [attemptClose, onOpenChange]
   );
 
   // Handle cancel button click
   const handleCancel = useCallback(() => {
-    if (isScheduleDateInPast()) {
-      toast.error("Please select a future date and time before canceling");
-      return;
-    }
+    attemptClose("cancel");
+  }, [attemptClose]);
+
+  // Discard changes and close
+  const handleDiscardChanges = useCallback(() => {
+    setShowUnsavedDialog(false);
+    setPendingCloseAction(null);
     onOpenChange(false);
-  }, [isScheduleDateInPast, onOpenChange]);
+  }, [onOpenChange]);
+
+  // Save and close
+  const handleSaveAndClose = useCallback(async () => {
+    setShowUnsavedDialog(false);
+    setPendingCloseAction(null);
+    await handleSaveWithMedia();
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   // Handle saving media for existing posts (edit mode)
   // Also handles scheduling if a future date is set
@@ -597,17 +629,36 @@ export function PostModal({
         );
       }
 
-      // Save all changes at once: content, scheduledDate, platforms, media
+      // Save all changes at once: content, scheduledDate, platforms, status, media
       await updatePost(editedPost.id, {
         content: editedPost.content,
         scheduledDate: editedPost.scheduledDate,
         platforms: editedPost.platforms,
+        status: editedPost.status,
         media: allMedia,
       });
 
       // Update local state
-      setLocalMedia(allMedia.map((m) => ({ ...m, isUploaded: true })));
+      const updatedMediaList = allMedia.map((m) => ({
+        ...m,
+        isUploaded: true,
+      }));
+      setLocalMedia(updatedMediaList);
       setEditedPost({ ...editedPost, media: allMedia });
+
+      // Update original refs so hasUnsavedChanges returns false
+      originalPostRef.current = JSON.stringify({
+        content: editedPost.content,
+        status: editedPost.status,
+        platforms: editedPost.platforms,
+        scheduledDate:
+          editedPost.scheduledDate instanceof Date
+            ? editedPost.scheduledDate.getTime()
+            : editedPost.scheduledDate,
+      });
+      originalMediaRef.current = JSON.stringify(
+        updatedMediaList.map((m) => ({ id: m.id, url: m.url, order: m.order }))
+      );
 
       onPostUpdated?.({ ...editedPost, media: allMedia } as Post);
 
@@ -674,321 +725,359 @@ export function PostModal({
   if (!editedPost) return null;
 
   return (
-    <Dialog open={open} onOpenChange={handleModalClose}>
-      <DialogContent
-        className="sm:max-w-[1100px] w-[95vw] p-0 gap-0 overflow-hidden"
-        onInteractOutside={(e) => {
-          if (isScheduleDateInPast()) {
-            e.preventDefault();
-            toast.error("Please select a future date and time before closing");
-          }
-        }}
-        onEscapeKeyDown={(e) => {
-          if (isScheduleDateInPast()) {
-            e.preventDefault();
-            toast.error("Please select a future date and time before closing");
-          }
-        }}
-      >
-        <VisuallyHidden>
-          <DialogTitle>{isEditMode ? "Edit Post" : "Create Post"}</DialogTitle>
-        </VisuallyHidden>
-        <div className="grid grid-cols-[1fr_380px] min-h-[600px] max-h-[90vh]">
-          {/* Left Side - Settings & Content Editor */}
-          <div className="flex flex-col border-r border-border">
-            {/* Header */}
-            <div className="p-4 border-b border-border">
-              <h3 className="text-lg font-semibold">
-                {isEditMode ? "Edit Post" : "Create Post"}
-              </h3>
-            </div>
+    <>
+      <Dialog open={open} onOpenChange={handleModalClose}>
+        <DialogContent
+          className="sm:max-w-[1100px] w-[95vw] p-0 gap-0 overflow-hidden"
+          onInteractOutside={(e) => {
+            if (isScheduleDateInPast()) {
+              e.preventDefault();
+              toast.error(
+                "Please select a future date and time before closing"
+              );
+              return;
+            }
+            if (hasUnsavedChanges()) {
+              e.preventDefault();
+              attemptClose("close");
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (isScheduleDateInPast()) {
+              e.preventDefault();
+              toast.error(
+                "Please select a future date and time before closing"
+              );
+              return;
+            }
+            if (hasUnsavedChanges()) {
+              e.preventDefault();
+              attemptClose("close");
+            }
+          }}
+        >
+          <VisuallyHidden>
+            <DialogTitle>
+              {isEditMode ? "Edit Post" : "Create Post"}
+            </DialogTitle>
+          </VisuallyHidden>
+          <div className="grid grid-cols-[1fr_380px] min-h-[600px] max-h-[90vh]">
+            {/* Left Side - Settings & Content Editor */}
+            <div className="flex flex-col border-r border-border">
+              {/* Header */}
+              <div className="p-4 border-b border-border">
+                <h3 className="text-lg font-semibold">
+                  {isEditMode ? "Edit Post" : "Create Post"}
+                </h3>
+              </div>
 
-            {/* Settings Section */}
-            <div className="p-4 border-b border-border">
-              {/* Inline Settings Row */}
-              <div className="flex items-center gap-3 flex-wrap">
-                {/* Platform Icons */}
-                <div className="flex items-center gap-1">
-                  {PLATFORMS.map((platform) => {
-                    const isSelected = editedPost.platforms.includes(
-                      platform.id as PostPlatform
-                    );
-                    return (
-                      <button
-                        key={platform.id}
-                        onClick={() =>
-                          !isPosted &&
-                          togglePlatform(platform.id as PostPlatform)
-                        }
-                        disabled={isPosted}
-                        className={cn(
-                          "relative p-1.5 rounded-full transition-all",
-                          isSelected
-                            ? "bg-muted ring-2 ring-primary"
-                            : "bg-muted/50 hover:bg-muted opacity-50",
-                          isPosted && "cursor-not-allowed"
-                        )}
-                      >
-                        <Image
-                          src={platform.logo}
-                          alt={platform.name}
-                          width={20}
-                          height={20}
-                          className="shrink-0"
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="h-5 w-px bg-border" />
-
-                {/* Status Dropdown */}
-                {isPosted ? (
-                  <div
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium cursor-not-allowed",
-                      statusConfig[editedPost.status].bgColor,
-                      statusConfig[editedPost.status].textColor
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "w-2 h-2 rounded-full",
-                        statusConfig[editedPost.status].dotColor
-                      )}
-                    />
-                    {statusConfig[editedPost.status].label}
-                  </div>
-                ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
-                          statusConfig[editedPost.status].bgColor,
-                          statusConfig[editedPost.status].textColor,
-                          "hover:opacity-80 transition-opacity cursor-pointer"
-                        )}
-                      >
-                        <span
+              {/* Settings Section */}
+              <div className="p-4 border-b border-border">
+                {/* Inline Settings Row */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Platform Icons */}
+                  <div className="flex items-center gap-1">
+                    {PLATFORMS.map((platform) => {
+                      const isSelected = editedPost.platforms.includes(
+                        platform.id as PostPlatform
+                      );
+                      return (
+                        <button
+                          key={platform.id}
+                          onClick={() =>
+                            !isPosted &&
+                            togglePlatform(platform.id as PostPlatform)
+                          }
+                          disabled={isPosted}
                           className={cn(
-                            "w-2 h-2 rounded-full",
-                            statusConfig[editedPost.status].dotColor
+                            "relative p-1.5 rounded-full transition-all",
+                            isSelected
+                              ? "bg-muted ring-2 ring-primary"
+                              : "bg-muted/50 hover:bg-muted opacity-50",
+                            isPosted && "cursor-not-allowed"
                           )}
-                        />
-                        {statusConfig[editedPost.status].label}
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-52">
-                      {statusGroups.map((group, groupIndex) => (
-                        <div key={group.label}>
-                          {groupIndex > 0 && <DropdownMenuSeparator />}
-                          <DropdownMenuLabel className="text-sm text-muted-foreground font-normal">
-                            {group.label}
-                          </DropdownMenuLabel>
-                          {group.statuses.map((status) => (
-                            <DropdownMenuItem
-                              key={status}
-                              onClick={() => handleStatusChange(status)}
-                              className="cursor-pointer"
-                            >
-                              <span
-                                className={cn(
-                                  "w-2.5 h-2.5 rounded-full",
-                                  statusConfig[status].dotColor
-                                )}
-                              />
-                              <span
-                                className={cn(
-                                  "px-2.5 py-1 rounded text-sm",
-                                  statusConfig[status].bgColor,
-                                  statusConfig[status].textColor
-                                )}
-                              >
-                                {statusConfig[status].label}
-                              </span>
-                            </DropdownMenuItem>
-                          ))}
-                        </div>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                        >
+                          <Image
+                            src={platform.logo}
+                            alt={platform.name}
+                            width={20}
+                            height={20}
+                            className="shrink-0"
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                {/* Scheduled Date */}
-                <DateTimePicker
-                  value={
-                    editedPost.scheduledDate
-                      ? new Date(editedPost.scheduledDate)
-                      : undefined
-                  }
-                  onChange={(date) => {
-                    if (isPosted) return;
-                    setEditedPost({
-                      ...editedPost,
-                      scheduledDate: date,
-                    });
-                  }}
-                  placeholder="Schedule"
-                  className="h-8 text-xs"
+                  <div className="h-5 w-px bg-border" />
+
+                  {/* Status Dropdown */}
+                  {isPosted ? (
+                    <div
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium cursor-not-allowed",
+                        statusConfig[editedPost.status].bgColor,
+                        statusConfig[editedPost.status].textColor
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "w-2 h-2 rounded-full",
+                          statusConfig[editedPost.status].dotColor
+                        )}
+                      />
+                      {statusConfig[editedPost.status].label}
+                    </div>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
+                            statusConfig[editedPost.status].bgColor,
+                            statusConfig[editedPost.status].textColor,
+                            "hover:opacity-80 transition-opacity cursor-pointer"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "w-2 h-2 rounded-full",
+                              statusConfig[editedPost.status].dotColor
+                            )}
+                          />
+                          {statusConfig[editedPost.status].label}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-52">
+                        {statusGroups.map((group, groupIndex) => (
+                          <div key={group.label}>
+                            {groupIndex > 0 && <DropdownMenuSeparator />}
+                            <DropdownMenuLabel className="text-sm text-muted-foreground font-normal">
+                              {group.label}
+                            </DropdownMenuLabel>
+                            {group.statuses.map((status) => (
+                              <DropdownMenuItem
+                                key={status}
+                                onClick={() => handleStatusChange(status)}
+                                className="cursor-pointer"
+                              >
+                                <span
+                                  className={cn(
+                                    "w-2.5 h-2.5 rounded-full",
+                                    statusConfig[status].dotColor
+                                  )}
+                                />
+                                <span
+                                  className={cn(
+                                    "px-2.5 py-1 rounded text-sm",
+                                    statusConfig[status].bgColor,
+                                    statusConfig[status].textColor
+                                  )}
+                                >
+                                  {statusConfig[status].label}
+                                </span>
+                              </DropdownMenuItem>
+                            ))}
+                          </div>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+
+                  {/* Scheduled Date */}
+                  <DateTimePicker
+                    value={
+                      editedPost.scheduledDate
+                        ? new Date(editedPost.scheduledDate)
+                        : undefined
+                    }
+                    onChange={(date) => {
+                      if (isPosted) return;
+                      setEditedPost({
+                        ...editedPost,
+                        scheduledDate: date,
+                      });
+                    }}
+                    placeholder="Schedule"
+                    className="h-8 text-xs"
+                    disabled={isPosted}
+                  />
+
+                  {/* Delete Button - Only in edit mode */}
+                  {isEditMode && (
+                    <>
+                      <div className="flex-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Content Area */}
+              <div className="flex-1 p-4 overflow-y-auto">
+                <PostEditor
+                  content={editedPost.content}
+                  onChange={handleContentChange}
+                  placeholder="What's happening?"
+                  readOnly={isPosted}
+                />
+              </div>
+
+              {/* Media Upload Section */}
+              <div className="p-4 border-t border-border">
+                <MediaUpload
+                  media={localMedia}
+                  onChange={handleMediaChange}
+                  maxFiles={10}
                   disabled={isPosted}
                 />
-
-                {/* Delete Button - Only in edit mode */}
-                {isEditMode && (
-                  <>
-                    <div className="flex-1" />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </>
-                )}
               </div>
-            </div>
 
-            {/* Content Area */}
-            <div className="flex-1 p-4 overflow-y-auto">
-              <PostEditor
-                content={editedPost.content}
-                onChange={handleContentChange}
-                placeholder="What's happening?"
-                readOnly={isPosted}
-              />
-            </div>
-
-            {/* Media Upload Section */}
-            <div className="p-4 border-t border-border">
-              <MediaUpload
-                media={localMedia}
-                onChange={handleMediaChange}
-                maxFiles={10}
-                disabled={isPosted}
-              />
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-border flex items-center justify-end">
-              <div className="flex items-center gap-2">
-                {isEditMode ? (
-                  <>
-                    {!isPosted && (
+              {/* Bottom Actions */}
+              <div className="p-4 border-t border-border flex items-center justify-end">
+                <div className="flex items-center gap-2">
+                  {isEditMode ? (
+                    <>
+                      {!isPosted && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSaveWithMedia}
+                          disabled={isSaving || isPublishing}
+                        >
+                          {isSaving ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              {uploadProgress || "Saving..."}
+                            </>
+                          ) : (
+                            "Save"
+                          )}
+                        </Button>
+                      )}
+                      {/* Publish Button */}
+                      {editedPost.status === "posted" ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled
+                          className="gap-1.5"
+                        >
+                          <Instagram className="w-4 h-4" />
+                          Published
+                        </Button>
+                      ) : hasInstagramConnected ? (
+                        <Button
+                          size="sm"
+                          onClick={handlePublishToInstagram}
+                          disabled={isSaving || isPublishing}
+                          className="gap-1.5 bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                        >
+                          {isPublishing ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Publishing...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4" />
+                              Publish
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            router.push(
+                              `/organization/${organizationId}/settings`
+                            )
+                          }
+                          className="gap-1.5"
+                        >
+                          <Instagram className="w-4 h-4" />
+                          Connect Instagram
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleSaveWithMedia}
-                        disabled={isSaving || isPublishing}
+                        onClick={handleCancel}
+                        disabled={isSaving}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleCreate}
+                        disabled={isSaving}
                       >
                         {isSaving ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            {uploadProgress || "Saving..."}
+                            {uploadProgress || "Creating..."}
                           </>
                         ) : (
-                          "Save"
+                          "Create Post"
                         )}
                       </Button>
-                    )}
-                    {/* Publish Button */}
-                    {editedPost.status === "posted" ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled
-                        className="gap-1.5"
-                      >
-                        <Instagram className="w-4 h-4" />
-                        Published
-                      </Button>
-                    ) : hasInstagramConnected ? (
-                      <Button
-                        size="sm"
-                        onClick={handlePublishToInstagram}
-                        disabled={isSaving || isPublishing}
-                        className="gap-1.5 bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                      >
-                        {isPublishing ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Publishing...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4" />
-                            Publish
-                          </>
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          router.push(
-                            `/organization/${organizationId}/settings`
-                          )
-                        }
-                        className="gap-1.5"
-                      >
-                        <Instagram className="w-4 h-4" />
-                        Connect Instagram
-                      </Button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancel}
-                      disabled={isSaving}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleCreate}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          {uploadProgress || "Creating..."}
-                        </>
-                      ) : (
-                        "Create Post"
-                      )}
-                    </Button>
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side - Instagram Embed Preview */}
+            <div className="flex flex-col min-w-0 bg-muted/30 p-4 overflow-y-auto">
+              <div className="flex-1 flex items-start justify-center">
+                <InstagramPhonePreview
+                  media={localMedia}
+                  caption={editedPost.content}
+                  username={username}
+                  profileImage={profileImage || undefined}
+                  scale={0.6}
+                />
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
 
-          {/* Right Side - Instagram Embed Preview */}
-          <div className="flex flex-col min-w-0 bg-muted/30 p-4 overflow-y-auto">
-            <div className="flex-1 flex items-start justify-center">
-              <InstagramPhonePreview
-                media={localMedia}
-                caption={editedPost.content}
-                username={username}
-                profileImage={profileImage || undefined}
-                scale={0.6}
-              />
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      {/* Unsaved Changes Alert Dialog */}
+      <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Do you want to save them before closing?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDiscardChanges}>
+              Don&apos;t save
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveAndClose}>
+              Save changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
