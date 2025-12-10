@@ -332,10 +332,10 @@ export async function getInstagramPostsForChannel(
     // 1. Verify authentication
     const userId = await verifyToken(idToken);
 
-    // 2. Find the organization with this channel (owned by user)
+    // 2. Find the organization with this channel (user is a member)
     const orgsSnapshot = await adminDb
       .collection("organizations")
-      .where("userId", "==", userId)
+      .where("users", "array-contains", userId)
       .get();
 
     let targetChannel: Channel | null = null;
