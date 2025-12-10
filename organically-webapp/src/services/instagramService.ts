@@ -3,36 +3,34 @@
 
 import { decryptToken } from "@/lib/encryption";
 import { Channel } from "@/types/organization";
+import {
+  InstagramProfile,
+  InstagramMedia,
+  InstagramMediaResponse,
+  ContainerStatus,
+  ContainerResponse,
+  ContainerStatusResponse,
+  PublishResponse,
+  InstagramComment,
+  CommentReplyResponse,
+  MessageResponse,
+} from "@/types/instagram";
+
+// Re-export types for backwards compatibility
+export type {
+  InstagramProfile,
+  InstagramMedia,
+  InstagramMediaResponse,
+  ContainerStatus,
+  ContainerResponse,
+  ContainerStatusResponse,
+  PublishResponse,
+  InstagramComment,
+  CommentReplyResponse,
+  MessageResponse,
+};
 
 const INSTAGRAM_GRAPH_URL = "https://graph.instagram.com";
-
-export interface InstagramProfile {
-  id: string;
-  username: string;
-  account_type: "PERSONAL" | "CREATOR" | "BUSINESS";
-  media_count?: number;
-}
-
-export interface InstagramMedia {
-  id: string;
-  caption?: string;
-  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
-  media_url?: string;
-  thumbnail_url?: string;
-  permalink: string;
-  timestamp: string;
-}
-
-export interface InstagramMediaResponse {
-  data: InstagramMedia[];
-  paging?: {
-    cursors: {
-      before: string;
-      after: string;
-    };
-    next?: string;
-  };
-}
 
 /**
  * Get the decrypted access token from a channel
@@ -185,26 +183,6 @@ export async function verifyInstagramToken(channel: Channel): Promise<boolean> {
 // Content Publishing API
 // Docs: https://developers.facebook.com/docs/instagram-platform/content-publishing
 // ============================================
-
-export type ContainerStatus =
-  | "EXPIRED"
-  | "ERROR"
-  | "FINISHED"
-  | "IN_PROGRESS"
-  | "PUBLISHED";
-
-export interface ContainerResponse {
-  id: string;
-}
-
-export interface ContainerStatusResponse {
-  status_code: ContainerStatus;
-  id: string;
-}
-
-export interface PublishResponse {
-  id: string;
-}
 
 /**
  * Create a media container for a single image post
@@ -487,29 +465,6 @@ export async function checkPublishingLimit(
 // Comment & Messaging API
 // Docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login
 // ============================================
-
-export interface InstagramComment {
-  id: string;
-  text: string;
-  timestamp: string;
-  username?: string;
-  from?: {
-    id: string;
-    username: string;
-  };
-  media?: {
-    id: string;
-  };
-}
-
-export interface CommentReplyResponse {
-  id: string;
-}
-
-export interface MessageResponse {
-  recipient_id: string;
-  message_id: string;
-}
 
 /**
  * Get details of a specific comment

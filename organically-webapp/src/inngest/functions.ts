@@ -21,6 +21,10 @@ import {
   DelayNodeData,
 } from "@/types/workflow";
 import {
+  InstagramWebhookEventData,
+  AutomationProcessingData,
+} from "@/types/instagram";
+import {
   matchesKeywords,
   matchesPostFilter,
 } from "@/services/automationService";
@@ -210,37 +214,8 @@ export const publishScheduledPost = inngest.createFunction(
 
 // ============================================================================
 // Instagram Webhook Processing
+// Types imported from @/types/instagram
 // ============================================================================
-
-/**
- * Instagram webhook event data
- */
-interface InstagramWebhookEventData {
-  type: "comment" | "message";
-  organizationId: string;
-  channelId: string;
-  senderId: string;
-  senderUsername: string;
-  text: string;
-  commentId?: string;
-  mediaId?: string;
-  timestamp: number;
-}
-
-/**
- * Simplified automation data for Inngest processing
- * We use a simplified type because Inngest requires JSON-serializable data
- */
-interface AutomationData {
-  id: string;
-  channelId: string;
-  isActive: boolean;
-  nodes: Array<{
-    id: string;
-    type: string;
-    data: Record<string, unknown>;
-  }>;
-}
 
 /**
  * Process Instagram webhooks for automations
@@ -292,7 +267,7 @@ export const processInstagramWebhook = inngest.createFunction(
             type: n.type,
             data: n.data,
           })),
-        } as AutomationData;
+        } as AutomationProcessingData;
       });
     });
 

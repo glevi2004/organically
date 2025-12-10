@@ -3,6 +3,12 @@ import crypto from "crypto";
 import { adminDb } from "@/firebase/firebaseAdmin";
 import { inngest } from "@/inngest/client";
 import { Organization } from "@/types/organization";
+import {
+  InstagramWebhookPayload,
+  WebhookChange,
+  CommentWebhookValue,
+  MessagingWebhookEntry,
+} from "@/types/instagram";
 
 // ============================================================================
 // Instagram Webhook Handler
@@ -241,52 +247,4 @@ async function processMessageWebhook(
   });
 }
 
-// ============================================================================
-// Webhook Payload Types
-// ============================================================================
-
-interface InstagramWebhookPayload {
-  object: "instagram";
-  entry?: WebhookEntry[];
-}
-
-interface WebhookEntry {
-  id: string; // Instagram account ID
-  time: number;
-  changes?: WebhookChange[];
-  messaging?: MessagingWebhookEntry[];
-}
-
-interface WebhookChange {
-  field: "comments" | "mentions" | "story_insights";
-  value: CommentWebhookValue;
-}
-
-interface CommentWebhookValue {
-  id?: string;
-  text?: string;
-  from?: {
-    id: string;
-    username: string;
-  };
-  media?: {
-    id: string;
-  };
-  parent_id?: string; // If this is a reply to another comment
-}
-
-interface MessagingWebhookEntry {
-  sender: { id: string };
-  recipient: { id: string };
-  timestamp: number;
-  message?: {
-    mid: string;
-    text?: string;
-    is_echo?: boolean; // True if this message was sent by us (to prevent loops)
-    is_deleted?: boolean; // True if this is an unsend notification
-    attachments?: Array<{
-      type: string;
-      payload: { url: string };
-    }>;
-  };
-}
+// Webhook Payload Types are imported from @/types/instagram
