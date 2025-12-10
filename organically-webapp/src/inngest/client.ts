@@ -12,4 +12,17 @@ export type Events = {
       scheduledDate: string;
     };
   };
+  "instagram/webhook.received": {
+    data: {
+      type: "comment" | "message";
+      organizationId: string;
+      channelId: string;
+      senderId: string;
+      senderUsername: string;
+      text: string;
+      commentId?: string;
+      mediaId?: string;
+      timestamp: number;
+    };
+  };
 };
