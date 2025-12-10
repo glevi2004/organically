@@ -138,6 +138,11 @@ export function PostModal({
     "close" | "cancel" | null
   >(null);
 
+  // Ready status confirmation dialog state
+  const [showReadyConfirmDialog, setShowReadyConfirmDialog] = useState(false);
+  const [pendingReadyStatus, setPendingReadyStatus] =
+    useState<PostStatus | null>(null);
+
   // Check if Instagram is connected
   const hasInstagramConnected = activeOrganization?.channels?.some(
     (c) => c.provider === "instagram" && c.isActive
@@ -219,6 +224,8 @@ export function PostModal({
       setUploadProgress(null);
       setShowUnsavedDialog(false);
       setPendingCloseAction(null);
+      setShowReadyConfirmDialog(false);
+      setPendingReadyStatus(null);
     }
   }, [post, open, organizationId, userId]);
 
@@ -261,8 +268,30 @@ export function PostModal({
       return;
     }
 
+    // If changing to "ready", show confirmation dialog
+    if (newStatus === "ready") {
+      setPendingReadyStatus(newStatus);
+      setShowReadyConfirmDialog(true);
+      return;
+    }
+
     // Just update local state - will be saved when user clicks Save
     setEditedPost({ ...editedPost, status: newStatus });
+  };
+
+  // Handle ready status confirmation
+  const handleConfirmReady = () => {
+    if (pendingReadyStatus && editedPost) {
+      setEditedPost({ ...editedPost, status: pendingReadyStatus });
+      setShowReadyConfirmDialog(false);
+      setPendingReadyStatus(null);
+    }
+  };
+
+  // Handle ready status cancellation
+  const handleCancelReady = () => {
+    setShowReadyConfirmDialog(false);
+    setPendingReadyStatus(null);
   };
 
   const handleDelete = async () => {
@@ -522,6 +551,11 @@ export function PostModal({
         return;
       }
 
+      // Don't show unsaved changes dialog if ready confirmation dialog is open
+      if (showReadyConfirmDialog) {
+        return;
+      }
+
       if (hasUnsavedChanges()) {
         setPendingCloseAction(action);
         setShowUnsavedDialog(true);
@@ -529,7 +563,7 @@ export function PostModal({
         onOpenChange(false);
       }
     },
-    [isScheduleDateInPast, hasUnsavedChanges, onOpenChange]
+    [isScheduleDateInPast, hasUnsavedChanges, onOpenChange, showReadyConfirmDialog]
   );
 
   // Handle modal close with validation
@@ -737,6 +771,11 @@ export function PostModal({
               );
               return;
             }
+            // Don't trigger unsaved changes check if ready confirmation dialog is open
+            if (showReadyConfirmDialog) {
+              e.preventDefault();
+              return;
+            }
             if (hasUnsavedChanges()) {
               e.preventDefault();
               attemptClose("close");
@@ -748,6 +787,11 @@ export function PostModal({
               toast.error(
                 "Please select a future date and time before closing"
               );
+              return;
+            }
+            // Don't trigger unsaved changes check if ready confirmation dialog is open
+            if (showReadyConfirmDialog) {
+              e.preventDefault();
               return;
             }
             if (hasUnsavedChanges()) {
@@ -1074,6 +1118,31 @@ export function PostModal({
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleSaveAndClose}>
               Save changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Ready Status Confirmation Dialog */}
+      <AlertDialog
+        open={showReadyConfirmDialog}
+        onOpenChange={setShowReadyConfirmDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark post as ready?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this post as ready? Once ready, the
+              post will be scheduled for publishing if all conditions are met
+              (scheduled date, media uploaded, Instagram connected).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelReady}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmReady}>
+              Mark as ready
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
